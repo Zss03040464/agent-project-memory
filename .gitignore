@@ -1,32 +1,28 @@
-# OS
 .DS_Store
 Thumbs.db
-
-# editor
-.vscode/
-.idea/
-
-# logs and temp
 *.log
 *.tmp
+*.bak
 .cache/
-tmp/
+node_modules/
+.venv/
+venv/
+__pycache__/
+dist/
+build/
+out/
+coverage/
+
+# local generated package artifacts
+*.zip
+*.tar.gz
 
 # secrets
 .env
 .env.*
-*.pem
 *.key
-*.p12
-*.pfx
+*.pem
 id_rsa
 id_ed25519
-cookies.json
-tokens.json
-secrets.json
-
-# generated archives
-*.zip
-*.tar.gz
-*.7z
-*.rar
+credentials.json
+token.json

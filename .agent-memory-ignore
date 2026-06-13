@@ -1,0 +1,55 @@
+# Agent Project Memory archive ignore file
+# Use this when packaging full projects for cloud backup.
+
+# secrets and credentials
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+credentials.json
+token.json
+secrets.json
+service-account*.json
+
+# dependency directories
+node_modules/
+.venv/
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# repository internals
+.git/
+
+# build outputs and caches
+dist/
+build/
+out/
+target/
+.cache/
+coverage/
+.next/
+.nuxt/
+
+# large or generated files
+*.iso
+*.img
+*.dmg
+*.mp4
+*.mov
+*.mkv
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.rar
+
+# system files
+.DS_Store
+Thumbs.db

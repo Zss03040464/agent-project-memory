@@ -1,52 +1,170 @@
-# agent-project-memory
+# Agent Project Memory
 
-Agent Project Memory 是一个面向 Codex、Claude Code、Gemini/Antigravity 等本地执行型 Agent 的项目记忆与交接目录模板。
+Portable project memory for coding agents.
 
-它解决的问题是：Agent 换会话、换工具、换系统、上下文压缩或聊天记录丢失后，不知道以前做过什么、项目在哪里、问题如何解决、下一步该干什么。
+Agent Project Memory gives coding agents a durable, local-first memory structure for recovering project context, avoiding repeated troubleshooting, locating renamed or moved projects, and checking cloud backups before recreating or overwriting missing work.
 
-## 核心思路
+It is designed for Claude Code, Codex, Gemini CLI, Cursor, OpenCode, and any coding agent that can read local Markdown files.
 
-不要把长期项目状态只放在聊天上下文里。每个 Agent 都应读取一个固定的、可版本管理的项目记忆目录。
+## Why this exists
 
-推荐目录：
+Coding agents often lose useful context when:
+
+- a project folder is renamed or moved
+- a sync tool changes paths
+- an agent session is reset
+- a different agent tool is used later
+- a local workspace is damaged
+- a previous debugging conclusion is forgotten
+- an agent sees a missing path and creates a new empty project over the expected location
+
+This repository provides a small, explicit memory system:
 
 ```text
-.codex/
-├── AGENTS.md
-└── project_memory/
-    ├── INDEX.md
-    ├── templates/
-    │   ├── RECORD_TEMPLATE.md
-    │   └── SESSION_TEMPLATE.md
-    └── records/
-        ├── clone-dual-system-sync/
-        │   └── SUMMARY.md
-        ├── tailscale-moonlight-sunshine/
-        │   └── SUMMARY.md
-        └── claude-code-proxy-fix/
-            └── SUMMARY.md
+project_memory/
+  INDEX.md          # high-level registry of known projects and solved issues
+  CLOUD.md          # cloud backup and recovery locations
+  records/          # per-project and per-issue records
+  templates/        # templates for new records
+  archives/         # optional local placeholder for full project archives
 ```
 
-## 使用方式
+## Core rule
 
-1. 把本仓库的 `.codex/` 目录复制到需要长期维护的 Agent 全局规则目录或项目目录。
-2. 让 Agent 在开始工作前先读取 `.codex/AGENTS.md`。
-3. 每完成一个非一次性问题，把结论写入 `.codex/project_memory/records/<topic>/SUMMARY.md`。
-4. 更新 `.codex/project_memory/INDEX.md`，让后续 Agent 能按关键词找到对应记录。
+A missing local path is not proof that a project is gone.
 
-## 适合记录什么
+Before creating, replacing, or overwriting a project, an agent must check the local memory index, project records, known workspace paths, sync folders, Git remotes, and cloud backup references.
 
-- 网络、代理、Tailscale、Moonlight、Sunshine、SSH、VPS 等环境问题。
-- Claude Code、Codex、Gemini、Antigravity、Computer Use、MCP 等 Agent 配置问题。
-- 长期项目的交接状态、验证方式、回滚方式。
-- 已经踩过坑且后续可能重复遇到的问题。
+## What this is
 
-## 不适合记录什么
+Agent Project Memory is:
 
-- 密钥、密码、cookie、token、私钥。
-- 完整敏感日志、私人订单数据、身份证件、联系方式。
-- 只适合当前一次对话的临时推理过程。
+- a skill-style instruction pack
+- a project registry format
+- a set of Markdown templates
+- a recovery workflow
+- install scripts for common agent config folders
+- a security-first convention for cloud backups and project archives
 
-## 当前仓库状态
+## What this is not
 
-这是通过 ChatGPT GitHub connector 直接提交的项目初始化版本。当前版本先提供可用的目录结构、模板、示例记录和基础校验脚本。
+Agent Project Memory is not:
+
+- a database server
+- a telemetry system
+- a secret manager
+- an automatic cloud uploader
+- a replacement for Git
+- a guarantee that deleted files can always be recovered
+
+## Quick start
+
+Clone or download this repository, then install into the agent you use.
+
+### Codex
+
+```bash
+bash installers/install-codex.sh
+```
+
+PowerShell:
+
+```powershell
+.\installers\install-codex.ps1
+```
+
+### Claude Code
+
+```bash
+bash installers/install-claude.sh
+```
+
+PowerShell:
+
+```powershell
+.\installers\install-claude.ps1
+```
+
+### Gemini CLI
+
+```bash
+bash installers/install-gemini.sh
+```
+
+PowerShell:
+
+```powershell
+.\installers\install-gemini.ps1
+```
+
+The installer copies templates into the matching agent configuration folder and prints the rule block that must be added to the agent's global rules file.
+
+## Manual installation
+
+Create this directory inside your agent config folder:
+
+```text
+<agent-config>/project_memory/
+```
+
+Copy:
+
+```text
+skills/project-memory/templates/INDEX.template.md      -> project_memory/INDEX.md
+skills/project-memory/templates/CLOUD.template.md      -> project_memory/CLOUD.md
+skills/project-memory/templates/PROJECT_SUMMARY.template.md -> project_memory/templates/PROJECT_SUMMARY.template.md
+skills/project-memory/templates/ISSUE_SUMMARY.template.md   -> project_memory/templates/ISSUE_SUMMARY.template.md
+skills/project-memory/templates/RECOVERY.template.md        -> project_memory/templates/RECOVERY.template.md
+```
+
+Then add the rule block from `snippets/AGENT_RULE_BLOCK.md` to your agent's global rules file.
+
+## Recommended cloud layout
+
+Use a cloud drive folder only for generic memory files and sanitized archives:
+
+```text
+Agent_Project_Memory/
+  INDEX.md
+  CLOUD.md
+  records/
+  archives/
+```
+
+Do not upload secrets, private keys, token files, credential files, or unfiltered dependency caches.
+
+## Security first
+
+Before archiving any project, review `.agent-memory-ignore` and `docs/security.md`.
+
+Default excluded patterns include:
+
+```text
+.env
+.env.*
+*.key
+*.pem
+id_rsa
+id_ed25519
+credentials.json
+token.json
+node_modules/
+.venv/
+venv/
+.git/
+__pycache__/
+dist/
+build/
+out/
+.cache/
+```
+
+## Example record
+
+The example records use fictional projects only. They do not contain real user data, real device names, real project paths, tokens, emails, or private repository names.
+
+See `examples/project_memory/`.
+
+## License
+
+MIT
