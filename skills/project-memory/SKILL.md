@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This skill gives coding agents a persistent project memory system. It helps agents recover project context, avoid repeated troubleshooting, locate renamed or moved projects, and use cloud backup references before recreating or overwriting missing work.
+This skill gives coding agents a persistent project memory workflow. It helps agents recover project context, avoid repeated troubleshooting, locate renamed or moved projects, and use cloud backup references before recreating or overwriting missing work.
 
 ## When to use
 
@@ -15,6 +15,7 @@ Use this skill before starting:
 - toolchain configuration
 - migration
 - synchronization
+- backup restoration
 - long-running user projects
 - any task that may depend on previous decisions
 
@@ -47,6 +48,6 @@ If a cloud mirror is configured, update the cloud copy as well.
 
 ## Safety rule
 
-Never include secrets, private keys, tokens, personal data, machine-specific private paths, or unfiltered dependency directories in project records or archives.
+Never include secrets, private keys, tokens, passwords, credential files, raw personal data, machine-specific private paths, or unfiltered dependency directories in project records or archives.
 
 Use `.agent-memory-ignore` when creating project archives.

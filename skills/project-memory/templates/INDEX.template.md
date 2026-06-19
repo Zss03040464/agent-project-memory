@@ -1,6 +1,6 @@
 # Project Memory Index
 
-This file is the high-level registry for projects, solved issues, migrations, and durable decisions that an agent may need to remember.
+This file is the high-level registry for projects, solved issues, migrations, workflows, and durable decisions that an agent may need to remember.
 
 Before acting on a project or troubleshooting task, read this file and check whether the current task is related to an existing record.
 
@@ -47,7 +47,7 @@ Use one of:
 
 ## Maintenance rules
 
-When a new durable project or solved issue is created, add one concise entry here.
+When a new durable project, solved issue, migration, or important decision is created, add one concise entry here.
 
 Each entry must link to a corresponding record under `records/`.
 

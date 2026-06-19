@@ -1,6 +1,6 @@
 ## Project memory, history index, and recovery workflow
 
-Before starting any project setup, debugging, code modification, migration, synchronization, environment repair, or long-running task, read the local project memory index:
+Before starting any project setup, debugging, code modification, migration, synchronization, environment repair, backup restoration, or long-running task, read the local project memory index:
 
 `project_memory/INDEX.md`
 
@@ -23,4 +23,6 @@ Then follow this recovery order:
 
 A missing local path is not proof that a project is gone. Never create, overwrite, or replace a project until the memory index, project record, workspace, sync locations, Git remotes, and cloud backup references have been checked.
 
-After completing a new long-running project, solving a complex issue, or making an important project decision, update `project_memory/INDEX.md` and create or update the corresponding record under `project_memory/records/`.
+After completing a new long-running project, solving a complex issue, completing a migration, or making an important project decision, update `project_memory/INDEX.md` and create or update the corresponding record under `project_memory/records/`.
+
+Never store API keys, private keys, tokens, passwords, credential files, raw personal data, or unfiltered archive contents in project memory. Use `.agent-memory-ignore` before creating any archive.

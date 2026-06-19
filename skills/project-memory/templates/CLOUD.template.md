@@ -1,8 +1,8 @@
 # Project Memory Cloud Backup
 
-This file records cloud backup locations for the project memory system.
+This file records cloud backup and recovery references for the project memory system.
 
-Do not include secrets, access tokens, private keys, or personal account details in this file.
+Do not include secrets, access tokens, private keys, passwords, email addresses, or personal account details in this file.
 
 ## Cloud root
 

@@ -19,7 +19,9 @@ All examples must use fictional placeholders.
 
 ## Before opening a pull request
 
-1. Run a local search for secrets and private identifiers.
-2. Check that examples are fictional.
-3. Confirm that no archive contains sensitive files.
-4. Keep the global rule block concise.
+1. Run `bash scripts/smoke-test.sh`.
+2. If PowerShell is available, run `pwsh -NoProfile -File scripts/smoke-test.ps1`.
+3. Run a local search for secrets and private identifiers.
+4. Check that examples are fictional.
+5. Confirm that no archive contains sensitive files.
+6. Keep the global rule block concise.

@@ -14,13 +14,14 @@ FORBIDDEN_PATTERNS = {
 }
 
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__"}
+TEXT_SUFFIXES = {".md", ".txt", ".ps1", ".sh", ".py", ".yml", ".yaml", ""}
 
 
 def iter_text_files(root: Path):
     for path in root.rglob("*"):
         if any(part in SKIP_DIRS for part in path.parts):
             continue
-        if path.is_file() and path.suffix.lower() in {".md", ".txt", ".ps1", ".sh", ".py", ""}:
+        if path.is_file() and path.suffix.lower() in TEXT_SUFFIXES:
             yield path
 
 

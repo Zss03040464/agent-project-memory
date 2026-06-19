@@ -22,6 +22,10 @@ Cloud backup and recovery references. This file does not upload anything by itse
 
 Optional location for sanitized full project archives. Archives are for recovery, not for routine context reading.
 
+### managed global rule block
+
+The installer can insert a managed Markdown block into an existing global rules file. The block is bounded by `BEGIN AGENT_PROJECT_MEMORY_RULES` and `END AGENT_PROJECT_MEMORY_RULES`, so repeated installation can replace the block instead of appending duplicates.
+
 ## Why not put everything in one global rules file?
 
 Large global rule files are harder to maintain and harder for agents to scan accurately. A small index plus linked records keeps the global rules stable while allowing the memory system to grow.

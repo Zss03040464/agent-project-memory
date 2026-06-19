@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: |
+          bash -n installers/install-common.sh
+          bash -n installers/install-codex.sh
+          bash -n installers/install-claude.sh
+          bash -n installers/install-gemini.sh
+          bash -n installers/uninstall.sh
+          bash -n scripts/smoke-test.sh
+
+      - name: Python smoke tests
+        run: python3 tests/test_installers.py
+
+      - name: Privacy scan
+        run: python3 scripts/privacy_scan.py
+
+      - name: PowerShell smoke test
+        shell: bash
+        run: |
+          if command -v pwsh >/dev/null 2>&1; then
+            pwsh -NoProfile -File scripts/smoke-test.ps1
+          else
+            echo "pwsh not available; PowerShell smoke test skipped. Run locally with: pwsh -NoProfile -File scripts/smoke-test.ps1"
+          fi
+
+      - name: README command check
+        run: |
+          grep -F "bash installers/install-codex.sh --dry-run" README.md
+          grep -F "bash installers/install-claude.sh --dry-run" README.md
+          grep -F "bash installers/install-gemini.sh --dry-run" README.md
+          grep -F ".\\installers\\install-codex.ps1 -DryRun" README.md

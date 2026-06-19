@@ -17,7 +17,7 @@ Never store these in public records, examples, or cloud archives:
 - credential JSON files
 - raw personal data
 - private account identifiers
-- sensitive machine-specific paths
+- sensitive machine-specific paths in public examples
 
 ## Public examples
 
@@ -32,6 +32,12 @@ https://github.com/example/example-project.git
 ```
 
 Do not use real user names, real emails, real device names, private repository names, or private project names.
+
+## Installer safety
+
+Installers must be idempotent. They must not duplicate the managed rule block, and they must not overwrite user `INDEX.md` or `CLOUD.md` by default.
+
+Any modification to an existing rules file is backed up first. Template overwrites require `--force-template` or `-ForceTemplate` and also create backups.
 
 ## Archive safety
 
