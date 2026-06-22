@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import time
 from pathlib import Path
 
 from tests.helpers import import_api
@@ -130,6 +131,40 @@ class PrivacyTests(unittest.TestCase):
         self.assertTrue(summary.redacted)
         self.assertNotIn(body, summary.excerpt)
         self.assertNotIn(body, repr(summary))
+
+    def test_unclosed_private_key_redacts_from_begin_to_end_of_input(self) -> None:
+        privacy = import_api("agent_project_memory.privacy")
+        marker = "UNCLOSED-PRIVATE-BODY-MARKER"
+        prompt = "\n".join(
+            [
+                "before",
+                "-----BEGIN " + "PRIVATE KEY-----",
+                marker,
+                "trailing private material",
+            ]
+        )
+
+        summary = privacy.summarize_prompt(prompt, max_bytes=512)
+
+        self.assertTrue(summary.redacted)
+        self.assertTrue(privacy.is_digest_only(text=prompt))
+        self.assertNotIn(marker, summary.excerpt)
+        self.assertNotIn("trailing private material", summary.excerpt)
+
+    def test_secret_assignment_scan_has_linear_time_budget(self) -> None:
+        privacy = import_api("agent_project_memory.privacy")
+        text = ("PREFIX_" * 8000) + "ordinary-value"
+
+        started = time.perf_counter()
+        result = privacy.scan_sensitive_text(text)
+        elapsed = time.perf_counter() - started
+
+        self.assertFalse(result.is_sensitive)
+        self.assertLess(
+            elapsed,
+            1.5,
+            "secret assignment scanning regressed beyond a linear-time budget",
+        )
 
     def test_digest_only_is_selected_for_sensitive_paths_or_content(self) -> None:
         privacy = import_api("agent_project_memory.privacy")

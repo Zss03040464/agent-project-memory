@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+from copy import deepcopy
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +33,10 @@ class JsonlAppendError(RuntimeError):
     """A JSONL append failed without exposing its record."""
 
 
+class ProcessLockError(RuntimeError):
+    """An inter-process lock failed without exposing platform details."""
+
+
 @dataclass(frozen=True)
 class JsonReadResult:
     data: Dict[str, Any]
@@ -53,7 +58,6 @@ def ensure_private_directory(path: Path) -> Path:
     for component in reversed(missing):
         component.mkdir(exist_ok=True, mode=0o700)
         _set_path_private_mode(component, 0o700)
-    _set_path_private_mode(directory, 0o700)
     return directory
 
 
@@ -71,9 +75,11 @@ def process_lock(path: Path) -> Iterator[None]:
 
     lock_path = Path(path)
     ensure_private_directory(lock_path.parent)
-    descriptor = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
     backend = process_lock_backend()
+    descriptor: Optional[int] = None
+    acquired = False
     try:
+        descriptor = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
         _set_fd_private_mode(descriptor, lock_path, 0o600)
         if backend == "fcntl":
             _fcntl.flock(descriptor, _fcntl.LOCK_EX)
@@ -84,17 +90,25 @@ def process_lock(path: Path) -> Iterator[None]:
             os.lseek(descriptor, 0, os.SEEK_SET)
             _msvcrt.locking(descriptor, _msvcrt.LK_LOCK, 1)
         else:
-            raise JsonlAppendError("process locking unavailable")
+            raise OSError("process locking unavailable")
+        acquired = True
         yield
+    except ProcessLockError:
+        raise
+    except Exception:
+        if not acquired:
+            raise ProcessLockError("process lock acquire failed") from None
+        raise
     finally:
         try:
-            if backend == "fcntl":
+            if acquired and backend == "fcntl":
                 _fcntl.flock(descriptor, _fcntl.LOCK_UN)
-            elif backend == "msvcrt":
+            elif acquired and backend == "msvcrt":
                 os.lseek(descriptor, 0, os.SEEK_SET)
                 _msvcrt.locking(descriptor, _msvcrt.LK_UNLCK, 1)
         finally:
-            os.close(descriptor)
+            if descriptor is not None:
+                os.close(descriptor)
 
 
 def atomic_write_text(path: Path, text: str) -> None:
@@ -111,6 +125,7 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
     target = Path(path)
     temporary: Optional[Path] = None
     descriptor: Optional[int] = None
+    committed = False
     try:
         ensure_private_directory(target.parent)
         descriptor, temporary_name = tempfile.mkstemp(
@@ -127,8 +142,7 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
             os.fsync(stream.fileno())
         os.replace(str(temporary), str(target))
         temporary = None
-        _set_path_private_mode(target, 0o600)
-        _fsync_directory(target.parent)
+        committed = True
     except Exception:
         if descriptor is not None:
             try:
@@ -141,6 +155,11 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
             except OSError:
                 pass
         raise AtomicWriteError("atomic write failed") from None
+    if committed:
+        try:
+            _fsync_directory(target.parent)
+        except Exception:
+            pass
 
 
 def write_json_state(
@@ -180,7 +199,7 @@ def read_json_state(
 ) -> JsonReadResult:
     """Read state or recover to a schema-stamped default without raising."""
 
-    fallback = dict(default)
+    fallback = deepcopy(dict(default))
     fallback["schema_version"] = schema_version
     target = Path(path)
     try:

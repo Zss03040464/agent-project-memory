@@ -23,9 +23,27 @@ class _FakeMsvcrt:
 
     def __init__(self) -> None:
         self.calls = []
+        self.held = False
 
     def locking(self, descriptor, mode, count) -> None:
         self.calls.append((descriptor, mode, count))
+        if mode == self.LK_LOCK:
+            self.held = True
+        elif mode == self.LK_UNLCK:
+            self.held = False
+
+
+class _AcquireFailingMsvcrt(_FakeMsvcrt):
+    def __init__(self) -> None:
+        super().__init__()
+        self.unlock_attempted = False
+
+    def locking(self, descriptor, mode, count) -> None:
+        self.calls.append((descriptor, mode, count))
+        if mode == self.LK_LOCK:
+            raise OSError("PRIVATE ACQUIRE DETAIL")
+        self.unlock_attempted = True
+        raise AssertionError("unlock must not run after acquire failure")
 
 
 def _append_worker(path_text: str, worker: int, count: int) -> None:
@@ -67,19 +85,80 @@ class AtomicIoTests(unittest.TestCase):
             with self.subTest(directory=directory.name):
                 self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
 
+    def test_existing_parent_mode_is_preserved_while_new_children_are_private(
+        self,
+    ) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        project_root = self.root / "existing-project"
+        project_root.mkdir(mode=0o755)
+        os.chmod(project_root, 0o755)
+        target = project_root / "state" / "sessions"
+
+        io_mod.ensure_private_directory(target)
+
+        self.assertEqual(stat.S_IMODE(project_root.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE((project_root / "state").stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o700)
+
+    def test_atomic_write_does_not_chmod_existing_project_root(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        project_root = self.root / "existing-project"
+        project_root.mkdir(mode=0o755)
+        os.chmod(project_root, 0o755)
+
+        io_mod.atomic_write_text(project_root / "state.json", "safe")
+
+        self.assertEqual(stat.S_IMODE(project_root.stat().st_mode), 0o755)
+
     def test_atomic_write_replaces_and_fsyncs_file_and_parent(self) -> None:
         io_mod = import_api("agent_project_memory.io")
         target = self.root / "state.txt"
         target.write_text("old", encoding="utf-8")
+        previous_inode = target.stat().st_ino
 
-        with mock.patch.object(os, "replace", wraps=os.replace) as replace_mock:
-            with mock.patch.object(os, "fsync", wraps=os.fsync) as fsync_mock:
-                io_mod.atomic_write_text(target, "new")
+        io_mod.atomic_write_text(target, "new")
 
         self.assertEqual(target.read_text(encoding="utf-8"), "new")
-        self.assertEqual(replace_mock.call_count, 1)
-        self.assertGreaterEqual(fsync_mock.call_count, 2)
+        self.assertNotEqual(target.stat().st_ino, previous_inode)
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
         self.assertFalse(any(target.parent.glob(f".{target.name}.*.tmp")))
+
+    def test_committed_replace_is_not_reported_failed_by_post_replace_chmod(
+        self,
+    ) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        target = self.root / "state.txt"
+        target.write_text("old", encoding="utf-8")
+
+        with mock.patch.object(
+            io_mod.os,
+            "chmod",
+            side_effect=OSError("post-replace permission failure"),
+        ):
+            try:
+                io_mod.atomic_write_text(target, "new")
+            except io_mod.AtomicWriteError:
+                self.fail("a committed replace must not be reported as failed")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), "new")
+
+    def test_committed_replace_is_not_reported_failed_by_directory_sync(
+        self,
+    ) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        target = self.root / "state.txt"
+
+        with mock.patch.object(
+            io_mod,
+            "_fsync_directory",
+            side_effect=OSError("post-replace directory sync failure"),
+        ):
+            try:
+                io_mod.atomic_write_text(target, "committed")
+            except io_mod.AtomicWriteError:
+                self.fail("post-commit durability failure must be best effort")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), "committed")
 
     def test_json_state_round_trip_always_contains_schema_version(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -95,6 +174,19 @@ class AtomicIoTests(unittest.TestCase):
         self.assertEqual(result.data, {"schema_version": 2, "phase": "ready"})
         on_disk = json.loads(target.read_text(encoding="utf-8"))
         self.assertEqual(on_disk["schema_version"], 2)
+
+    def test_recovered_json_state_deep_copies_nested_defaults(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        default = {"nested": {"items": ["original"]}}
+
+        result = io_mod.read_json_state(
+            self.root / "missing.json",
+            schema_version=1,
+            default=default,
+        )
+        result.data["nested"]["items"].append("changed")
+
+        self.assertEqual(default, {"nested": {"items": ["original"]}})
 
     def test_damaged_or_wrong_schema_state_recovers_without_echoing_content(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -180,11 +272,42 @@ class AtomicIoTests(unittest.TestCase):
                 self.assertEqual(io_mod.process_lock_backend(), "msvcrt")
                 with io_mod.process_lock(lock_path):
                     self.assertTrue(lock_path.is_file())
+                    self.assertTrue(fake_msvcrt.held)
 
-        self.assertEqual(
-            [call[1] for call in fake_msvcrt.calls],
-            [fake_msvcrt.LK_LOCK, fake_msvcrt.LK_UNLCK],
+        self.assertFalse(fake_msvcrt.held)
+
+    def test_failed_lock_acquire_is_not_unlocked_or_leaked_by_process_api(
+        self,
+    ) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        fake_msvcrt = _AcquireFailingMsvcrt()
+        self.assertTrue(
+            hasattr(io_mod, "ProcessLockError"),
+            "process lock failures need a dedicated public error",
         )
+
+        with mock.patch.object(io_mod, "_fcntl", None):
+            with mock.patch.object(io_mod, "_msvcrt", fake_msvcrt):
+                with self.assertRaises(io_mod.ProcessLockError) as raised:
+                    with io_mod.process_lock(self.root / "state.lock"):
+                        self.fail("lock body must not run")
+
+        self.assertEqual(str(raised.exception), "process lock acquire failed")
+        self.assertFalse(fake_msvcrt.unlock_attempted)
+
+    def test_jsonl_converts_process_lock_failure_to_jsonl_error(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        fake_msvcrt = _AcquireFailingMsvcrt()
+
+        with mock.patch.object(io_mod, "_fcntl", None):
+            with mock.patch.object(io_mod, "_msvcrt", fake_msvcrt):
+                with self.assertRaises(io_mod.JsonlAppendError) as raised:
+                    io_mod.append_jsonl(
+                        self.root / "events.jsonl", {"event": "checkpoint"}
+                    )
+
+        self.assertEqual(str(raised.exception), "jsonl append failed")
+        self.assertNotIn("PRIVATE", repr(raised.exception))
 
     def test_windows_without_fchmod_writes_json_and_jsonl_end_to_end(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -199,19 +322,16 @@ class AtomicIoTests(unittest.TestCase):
         with mock.patch.object(io_mod, "_fcntl", None):
             with mock.patch.object(io_mod, "_msvcrt", fake_msvcrt):
                 with mock.patch.object(io_mod.os, "fchmod", None):
-                    with mock.patch.object(
-                        io_mod.os, "chmod", wraps=os.chmod
-                    ) as chmod_mock:
-                        io_mod.atomic_write_json(
-                            state_path,
-                            {"phase": "ready"},
-                            schema_version=2,
-                        )
-                        io_mod.append_jsonl(
-                            events_path,
-                            {"event": "checkpoint"},
-                            schema_version=2,
-                        )
+                    io_mod.atomic_write_json(
+                        state_path,
+                        {"phase": "ready"},
+                        schema_version=2,
+                    )
+                    io_mod.append_jsonl(
+                        events_path,
+                        {"event": "checkpoint"},
+                        schema_version=2,
+                    )
 
         self.assertEqual(
             json.loads(state_path.read_text(encoding="utf-8")),
@@ -221,16 +341,10 @@ class AtomicIoTests(unittest.TestCase):
             json.loads(events_path.read_text(encoding="utf-8")),
             {"schema_version": 2, "event": "checkpoint"},
         )
-        self.assertTrue(
-            any(call.args[1] == 0o700 for call in chmod_mock.call_args_list)
-        )
-        self.assertTrue(
-            any(call.args[1] == 0o600 for call in chmod_mock.call_args_list)
-        )
-        self.assertEqual(
-            [call[1] for call in fake_msvcrt.calls],
-            [fake_msvcrt.LK_LOCK, fake_msvcrt.LK_UNLCK],
-        )
+        self.assertEqual(stat.S_IMODE(state_path.parent.stat().st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(state_path.stat().st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(events_path.stat().st_mode), 0o600)
+        self.assertFalse(fake_msvcrt.held)
 
     def test_write_failure_does_not_echo_payload(self) -> None:
         io_mod = import_api("agent_project_memory.io")

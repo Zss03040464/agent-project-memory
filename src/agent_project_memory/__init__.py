@@ -1,11 +1,19 @@
 """Safe, standard-library continuity primitives for agent project memory."""
 
-from .config import Config, ConfigLoadResult, load_config
+from .config import (
+    Config,
+    ConfigLoadResult,
+    RootClassification,
+    classify_root,
+    load_config,
+    parse_toml_subset,
+)
 from .io import (
     PROCESS_LOCKING_AVAILABLE,
     AtomicWriteError,
     JsonReadResult,
     JsonlAppendError,
+    ProcessLockError,
     append_jsonl,
     atomic_write_bytes,
     atomic_write_json,
@@ -29,10 +37,12 @@ from .privacy import (
 __all__ = [
     "Config",
     "ConfigLoadResult",
+    "RootClassification",
     "PROCESS_LOCKING_AVAILABLE",
     "AtomicWriteError",
     "JsonReadResult",
     "JsonlAppendError",
+    "ProcessLockError",
     "PathClassification",
     "PromptSummary",
     "SensitiveScan",
@@ -41,9 +51,11 @@ __all__ = [
     "atomic_write_json",
     "atomic_write_text",
     "classify_sensitive_path",
+    "classify_root",
     "ensure_private_directory",
     "is_digest_only",
     "load_config",
+    "parse_toml_subset",
     "process_lock",
     "process_lock_backend",
     "read_json_state",

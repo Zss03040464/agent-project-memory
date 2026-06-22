@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import PurePosixPath, PureWindowsPath
 from pathlib import Path
 from unittest import mock
 
@@ -173,6 +174,7 @@ class ConfigTests(unittest.TestCase):
         alias = self.root / "dropbox-alias"
         for path in (dropbox_project, cloud_project):
             path.mkdir(parents=True)
+            (path / ".git").mkdir()
         alias.symlink_to(dropbox, target_is_directory=True)
         volume_root = Path("/Volumes/ExternalDisk")
         volume_project = volume_root / "work" / "project"
@@ -204,14 +206,13 @@ class ConfigTests(unittest.TestCase):
             (
                 dropbox_project.resolve(),
                 cloud_project.resolve(),
-                volume_project.resolve(),
             ),
         )
         self.assertEqual(
             result.diagnostics, ("unsafe or denied trusted roots ignored",)
         )
 
-    def test_sync_root_families_use_uniform_project_depth_rule(self) -> None:
+    def test_sync_root_families_require_marked_project_candidates(self) -> None:
         config_mod = import_api("agent_project_memory.config")
         fake_home = self.root / "home"
         cloud_storage = fake_home / "Library" / "CloudStorage"
@@ -228,10 +229,10 @@ class ConfigTests(unittest.TestCase):
             broad_candidates.extend((provider, provider / "project"))
             project = provider / "work" / "project"
             project.mkdir(parents=True)
+            (project / ".git").mkdir()
             allowed_projects.append(project.resolve())
         volume = Path("/Volumes/ExternalDisk")
         broad_candidates.extend((Path("/Volumes"), volume, volume / "project"))
-        allowed_projects.append((volume / "work" / "project").resolve())
         alias = self.root / "cloud-provider-alias"
         alias.symlink_to(providers[0], target_is_directory=True)
         broad_candidates.append(alias)
@@ -254,6 +255,130 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(
             result.diagnostics, ("unsafe or denied trusted roots ignored",)
         )
+
+    def test_strict_toml_subset_supports_literal_basic_integer_and_boolean(
+        self,
+    ) -> None:
+        config_mod = import_api("agent_project_memory.config")
+
+        parsed = config_mod.parse_toml_subset(
+            "\n".join(
+                [
+                    r"literal = 'C:\Users\Example\Projects'",
+                    r'basic = "line\nquote:\" unicode:\u4F60"',
+                    "integer = 1_024",
+                    "enabled = true",
+                    r'''array = ['one', "two\tvalue"]''',
+                ]
+            ).encode("utf-8")
+        )
+
+        self.assertEqual(parsed["literal"], r"C:\Users\Example\Projects")
+        self.assertEqual(parsed["basic"], 'line\nquote:" unicode:你')
+        self.assertEqual(parsed["integer"], 1024)
+        self.assertIs(parsed["enabled"], True)
+        self.assertEqual(parsed["array"], ["one", "two\tvalue"])
+
+    def test_invalid_toml_and_relative_roots_fail_open_independent_of_cwd(
+        self,
+    ) -> None:
+        config_mod = import_api("agent_project_memory.config")
+        cases = (
+            r'project_markers = ["bad\qescape"]',
+            'trusted_roots = ["relative/project"]',
+            'denied_roots = ["../relative"]',
+        )
+        other_cwd = self.root / "other-cwd"
+        other_cwd.mkdir()
+        for text in cases:
+            with self.subTest(text=text):
+                config_path = self.root / "config.toml"
+                config_path.write_text(text, encoding="utf-8")
+                with mock.patch.object(Path, "cwd", return_value=other_cwd):
+                    result = config_mod.load_config(config_path)
+                self.assertEqual(result.config, config_mod.Config.defaults())
+                self.assertEqual(
+                    result.diagnostics,
+                    ("invalid configuration; using safe defaults",),
+                )
+
+    def test_symlink_loop_in_configured_root_fails_open_without_path_leak(
+        self,
+    ) -> None:
+        config_mod = import_api("agent_project_memory.config")
+        first = self.root / "PRIVATE-FIRST"
+        second = self.root / "PRIVATE-SECOND"
+        first.symlink_to(second)
+        second.symlink_to(first)
+        config_path = self.root / "config.toml"
+        config_path.write_text(
+            f'trusted_roots = ["{first}"]', encoding="utf-8"
+        )
+
+        result = config_mod.load_config(config_path)
+
+        self.assertEqual(result.config, config_mod.Config.defaults())
+        self.assertEqual(
+            result.diagnostics, ("invalid configuration; using safe defaults",)
+        )
+        self.assertNotIn("PRIVATE", " ".join(result.diagnostics))
+
+    def test_root_classification_is_cross_platform_and_marker_aware(self) -> None:
+        config_mod = import_api("agent_project_memory.config")
+        posix_home = PurePosixPath("/home/alice")
+        windows_home = PureWindowsPath(r"C:\Users\Alice")
+        dangerous = (
+            (PurePosixPath("/"), posix_home),
+            (PurePosixPath("/home"), posix_home),
+            (PurePosixPath("/Users"), PurePosixPath("/Users/alice")),
+            (posix_home, posix_home),
+            (PureWindowsPath("C:\\"), windows_home),
+            (PureWindowsPath(r"C:\Users"), windows_home),
+            (windows_home, windows_home),
+        )
+        for candidate, home in dangerous:
+            with self.subTest(candidate=str(candidate)):
+                self.assertTrue(
+                    config_mod.classify_root(candidate, home=home).is_dangerous
+                )
+
+        sync_project = PureWindowsPath(
+            r"C:\Users\Alice\OneDrive\work\project"
+        )
+        without_marker = config_mod.classify_root(
+            sync_project, home=windows_home, has_project_marker=False
+        )
+        with_marker = config_mod.classify_root(
+            sync_project, home=windows_home, has_project_marker=True
+        )
+        self.assertTrue(without_marker.is_dangerous)
+        self.assertTrue(without_marker.requires_project_marker)
+        self.assertFalse(with_marker.is_dangerous)
+
+    def test_sync_provider_deep_directory_requires_project_marker(self) -> None:
+        config_mod = import_api("agent_project_memory.config")
+        fake_home = self.root / "home"
+        provider = fake_home / "Library" / "CloudStorage" / "Provider"
+        unmarked = provider / "deep" / "unmarked"
+        marked = provider / "deep" / "marked"
+        unmarked.mkdir(parents=True)
+        marked.mkdir(parents=True)
+        (marked / ".git").mkdir()
+        config_path = self.root / "config.toml"
+        config_path.write_text(
+            "\n".join(
+                [
+                    f'trusted_roots = ["{unmarked}", "{marked}"]',
+                    'project_markers = [".git"]',
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(Path, "home", return_value=fake_home):
+            result = config_mod.load_config(config_path)
+
+        self.assertEqual(result.config.trusted_roots, (marked.resolve(),))
 
 
 if __name__ == "__main__":

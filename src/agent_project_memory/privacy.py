@@ -31,18 +31,6 @@ class PromptSummary:
 
 _TEXT_PATTERNS: Tuple[Tuple[str, Pattern[str]], ...] = (
     (
-        "private_key",
-        re.compile(
-            r"(?:"
-            r"-----BEGIN (?P<key_kind>(?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?"
-            r"PRIVATE KEY)-----[\s\S]*?-----END (?P=key_kind)-----"
-            r"|-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?"
-            r"PRIVATE KEY-----"
-            r")",
-            re.IGNORECASE,
-        ),
-    ),
-    (
         "certificate",
         re.compile(r"-----BEGIN CERTIFICATE-----", re.IGNORECASE),
     ),
@@ -71,12 +59,16 @@ _TEXT_PATTERNS: Tuple[Tuple[str, Pattern[str]], ...] = (
     (
         "secret_assignment",
         re.compile(
-            r"(?im)(?<![A-Za-z0-9])(?:[A-Za-z0-9]+_)*"
+            r"(?im)(?<![A-Za-z0-9])(?:[A-Za-z0-9]{1,32}_){0,8}"
             r"(?:password|passwd|token|secret(?:_access_key)?|"
             r"api_key|api[\s-]?key|client_secret|cookie)"
             r"\s*[:=]\s*(?:[\"'][^\"'\r\n]*[\"']|[^\s,\r\n]+)"
         ),
     ),
+)
+_PRIVATE_KEY_BEGIN = re.compile(
+    r"-----BEGIN ((?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY)-----",
+    re.IGNORECASE,
 )
 
 _PRIVATE_KEY_NAMES = {
@@ -141,10 +133,14 @@ def classify_sensitive_path(path: Path) -> PathClassification:
 def scan_sensitive_text(text: str) -> SensitiveScan:
     """Return only matched category names, never matched values."""
 
-    categories = tuple(
+    categories = []
+    if _PRIVATE_KEY_BEGIN.search(text):
+        categories.append("private_key")
+    categories.extend(
         category for category, pattern in _TEXT_PATTERNS if pattern.search(text)
     )
-    return SensitiveScan(bool(categories), categories)
+    unique = tuple(dict.fromkeys(categories))
+    return SensitiveScan(bool(unique), unique)
 
 
 def summarize_prompt(text: str, max_bytes: int) -> PromptSummary:
@@ -154,7 +150,7 @@ def summarize_prompt(text: str, max_bytes: int) -> PromptSummary:
         raise ValueError("max_bytes must be positive")
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     scan = scan_sensitive_text(text)
-    redacted_text = text
+    redacted_text = _redact_private_keys(text)
     for category, pattern in _TEXT_PATTERNS:
         redacted_text = pattern.sub("[REDACTED:{}]".format(category), redacted_text)
     encoded = redacted_text.encode("utf-8")
@@ -181,3 +177,22 @@ def _truncate_utf8(encoded: bytes, max_bytes: int) -> str:
     if len(encoded) <= max_bytes:
         return encoded.decode("utf-8")
     return encoded[:max_bytes].decode("utf-8", errors="ignore")
+
+
+def _redact_private_keys(text: str) -> str:
+    parts = []
+    cursor = 0
+    folded_text = text.casefold()
+    while True:
+        match = _PRIVATE_KEY_BEGIN.search(text, cursor)
+        if match is None:
+            parts.append(text[cursor:])
+            break
+        parts.append(text[cursor : match.start()])
+        end_marker = "-----END {}-----".format(match.group(1))
+        end_index = folded_text.find(end_marker.casefold(), match.end())
+        parts.append("[REDACTED:private_key]")
+        if end_index < 0:
+            break
+        cursor = end_index + len(end_marker)
+    return "".join(parts)
