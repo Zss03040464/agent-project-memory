@@ -294,11 +294,25 @@ def _is_same_or_descendant(path: Path, root: Path) -> bool:
 
 def _is_dangerous_root(path: Path) -> bool:
     home = Path.home().resolve()
+    mobile_documents = (home / "Library" / "Mobile Documents").resolve()
+    volumes = Path("/Volumes").resolve()
     exact_roots = {
         Path(os.sep).resolve(),
         home,
         Path("/Users").resolve(),
+        (home / "Dropbox").resolve(),
+        mobile_documents,
+        volumes,
     }
     if path in exact_roots:
         return True
+    if _is_direct_child(path, mobile_documents) or _is_direct_child(path, volumes):
+        return True
     return _is_same_or_descendant(path, home / ".codex")
+
+
+def _is_direct_child(path: Path, root: Path) -> bool:
+    try:
+        return len(path.relative_to(root).parts) == 1
+    except ValueError:
+        return False

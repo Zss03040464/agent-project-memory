@@ -17,6 +17,17 @@ class _ExplodingMapping:
         raise OSError("DO_NOT_ECHO_MAPPING_ERROR")
 
 
+class _FakeMsvcrt:
+    LK_LOCK = 1
+    LK_UNLCK = 2
+
+    def __init__(self) -> None:
+        self.calls = []
+
+    def locking(self, descriptor, mode, count) -> None:
+        self.calls.append((descriptor, mode, count))
+
+
 def _append_worker(path_text: str, worker: int, count: int) -> None:
     io_mod = import_api("agent_project_memory.io")
     path = Path(path_text)
@@ -40,6 +51,21 @@ class AtomicIoTests(unittest.TestCase):
 
         self.assertEqual(stat.S_IMODE(target.parent.stat().st_mode), 0o700)
         self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+
+    def test_all_newly_created_directory_ancestors_are_private(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        private_root = self.root / "state"
+        target = private_root / "sessions" / "current" / "state.json"
+
+        io_mod.atomic_write_text(target, "safe")
+
+        for directory in (
+            private_root,
+            private_root / "sessions",
+            private_root / "sessions" / "current",
+        ):
+            with self.subTest(directory=directory.name):
+                self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
 
     def test_atomic_write_replaces_and_fsyncs_file_and_parent(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -125,7 +151,40 @@ class AtomicIoTests(unittest.TestCase):
             },
         )
         self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
-        self.assertEqual(io_mod.PROCESS_LOCKING_AVAILABLE, os.name == "posix")
+        self.assertIn(io_mod.process_lock_backend(), {"fcntl", "msvcrt"})
+
+    def test_jsonl_append_injects_schema_without_mutating_caller_record(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        target = self.root / "events.jsonl"
+        record = {"event": "checkpoint"}
+
+        io_mod.append_jsonl(target, record)
+
+        self.assertEqual(record, {"event": "checkpoint"})
+        stored = json.loads(target.read_text(encoding="utf-8"))
+        self.assertEqual(
+            stored, {"schema_version": 1, "event": "checkpoint"}
+        )
+
+    def test_process_lock_selects_msvcrt_when_fcntl_is_unavailable(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        self.assertTrue(
+            hasattr(io_mod, "process_lock"),
+            "a unified process_lock API is required",
+        )
+        fake_msvcrt = _FakeMsvcrt()
+        lock_path = self.root / "events.lock"
+
+        with mock.patch.object(io_mod, "_fcntl", None):
+            with mock.patch.object(io_mod, "_msvcrt", fake_msvcrt):
+                self.assertEqual(io_mod.process_lock_backend(), "msvcrt")
+                with io_mod.process_lock(lock_path):
+                    self.assertTrue(lock_path.is_file())
+
+        self.assertEqual(
+            [call[1] for call in fake_msvcrt.calls],
+            [fake_msvcrt.LK_LOCK, fake_msvcrt.LK_UNLCK],
+        )
 
     def test_write_failure_does_not_echo_payload(self) -> None:
         io_mod = import_api("agent_project_memory.io")

@@ -10,6 +10,8 @@ from .io import (
     atomic_write_bytes,
     atomic_write_text,
     ensure_private_directory,
+    process_lock,
+    process_lock_backend,
     read_json_state,
     write_json_state,
 )
@@ -40,6 +42,8 @@ __all__ = [
     "ensure_private_directory",
     "is_digest_only",
     "load_config",
+    "process_lock",
+    "process_lock_backend",
     "read_json_state",
     "scan_sensitive_text",
     "summarize_prompt",

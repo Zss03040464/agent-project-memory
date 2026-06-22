@@ -33,7 +33,12 @@ _TEXT_PATTERNS: Tuple[Tuple[str, Pattern[str]], ...] = (
     (
         "private_key",
         re.compile(
-            r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",
+            r"(?:"
+            r"-----BEGIN (?P<key_kind>(?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?"
+            r"PRIVATE KEY)-----[\s\S]*?-----END (?P=key_kind)-----"
+            r"|-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?"
+            r"PRIVATE KEY-----"
+            r")",
             re.IGNORECASE,
         ),
     ),
@@ -47,7 +52,9 @@ _TEXT_PATTERNS: Tuple[Tuple[str, Pattern[str]], ...] = (
     ),
     (
         "github_token",
-        re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
+        re.compile(
+            r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{16,})\b"
+        ),
     ),
     (
         "aws_access_key",
@@ -59,14 +66,14 @@ _TEXT_PATTERNS: Tuple[Tuple[str, Pattern[str]], ...] = (
     ),
     (
         "cookie_header",
-        re.compile(r"(?im)^\s*(?:cookie|set-cookie)\s*:\s*[^\r\n]+"),
+        re.compile(r"(?im)^\s*(?:cookie|set-cookie)\s*[:=]\s*[^\r\n]+"),
     ),
     (
         "secret_assignment",
         re.compile(
             r"(?im)(?<![A-Za-z0-9])(?:[A-Za-z0-9]+_)*"
             r"(?:password|passwd|token|secret(?:_access_key)?|"
-            r"api_key|api[\s-]?key|client_secret)"
+            r"api_key|api[\s-]?key|client_secret|cookie)"
             r"\s*[:=]\s*(?:[\"'][^\"'\r\n]*[\"']|[^\s,\r\n]+)"
         ),
     ),

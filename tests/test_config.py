@@ -160,6 +160,57 @@ class ConfigTests(unittest.TestCase):
         self.assertNotIn(str(safe), joined)
         self.assertIn("unsafe or denied trusted roots ignored", joined)
 
+    def test_sync_and_volume_broad_roots_are_rejected_but_projects_are_allowed(
+        self,
+    ) -> None:
+        config_mod = import_api("agent_project_memory.config")
+        fake_home = self.root / "home"
+        dropbox = fake_home / "Dropbox"
+        mobile_documents = fake_home / "Library" / "Mobile Documents"
+        cloud_drive = mobile_documents / "com~apple~CloudDocs"
+        dropbox_project = dropbox / "work" / "project"
+        cloud_project = cloud_drive / "work" / "project"
+        alias = self.root / "dropbox-alias"
+        for path in (dropbox_project, cloud_project):
+            path.mkdir(parents=True)
+        alias.symlink_to(dropbox, target_is_directory=True)
+        volume_root = Path("/Volumes/ExternalDisk")
+        volume_project = volume_root / "work" / "project"
+        config_path = self.root / "config.toml"
+        config_path.write_text(
+            "\n".join(
+                [
+                    "trusted_roots = [",
+                    f'  "{dropbox}",',
+                    f'  "{alias}",',
+                    f'  "{mobile_documents}",',
+                    f'  "{cloud_drive}",',
+                    '  "/Volumes",',
+                    f'  "{volume_root}",',
+                    f'  "{dropbox_project}",',
+                    f'  "{cloud_project}",',
+                    f'  "{volume_project}"',
+                    "]",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(Path, "home", return_value=fake_home):
+            result = config_mod.load_config(config_path)
+
+        self.assertEqual(
+            result.config.trusted_roots,
+            (
+                dropbox_project.resolve(),
+                cloud_project.resolve(),
+                volume_project.resolve(),
+            ),
+        )
+        self.assertEqual(
+            result.diagnostics, ("unsafe or denied trusted roots ignored",)
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -5,19 +5,23 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Iterator, Mapping, Optional
 
 try:
-    import fcntl
+    import fcntl as _fcntl
 except ImportError:  # pragma: no cover - exercised on Windows runners
-    fcntl = None  # type: ignore
+    _fcntl = None  # type: ignore
+
+try:
+    import msvcrt as _msvcrt
+except ImportError:  # pragma: no cover - exercised on POSIX runners
+    _msvcrt = None  # type: ignore
 
 
-PROCESS_LOCKING_AVAILABLE = fcntl is not None
-_FALLBACK_APPEND_LOCK = threading.Lock()
+PROCESS_LOCKING_AVAILABLE = _fcntl is not None or _msvcrt is not None
 
 
 class AtomicWriteError(RuntimeError):
@@ -39,9 +43,59 @@ def ensure_private_directory(path: Path) -> Path:
     """Create a directory and constrain its mode to owner-only access."""
 
     directory = Path(path)
-    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    missing = []
+    candidate = directory
+    while not candidate.exists():
+        missing.append(candidate)
+        if candidate.parent == candidate:
+            break
+        candidate = candidate.parent
+    for component in reversed(missing):
+        component.mkdir(exist_ok=True, mode=0o700)
+        os.chmod(str(component), 0o700)
     os.chmod(str(directory), 0o700)
     return directory
+
+
+def process_lock_backend() -> Optional[str]:
+    if _fcntl is not None:
+        return "fcntl"
+    if _msvcrt is not None:
+        return "msvcrt"
+    return None
+
+
+@contextmanager
+def process_lock(path: Path) -> Iterator[None]:
+    """Hold a standard-library inter-process lock for the given lock file."""
+
+    lock_path = Path(path)
+    ensure_private_directory(lock_path.parent)
+    descriptor = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    backend = process_lock_backend()
+    try:
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
+        if backend == "fcntl":
+            _fcntl.flock(descriptor, _fcntl.LOCK_EX)
+        elif backend == "msvcrt":
+            if os.fstat(descriptor).st_size == 0:
+                os.write(descriptor, b"\0")
+                os.fsync(descriptor)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            _msvcrt.locking(descriptor, _msvcrt.LK_LOCK, 1)
+        else:
+            raise JsonlAppendError("process locking unavailable")
+        yield
+    finally:
+        try:
+            if backend == "fcntl":
+                _fcntl.flock(descriptor, _fcntl.LOCK_UN)
+            elif backend == "msvcrt":
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                _msvcrt.locking(descriptor, _msvcrt.LK_UNLCK, 1)
+        finally:
+            os.close(descriptor)
 
 
 def atomic_write_text(path: Path, text: str) -> None:
@@ -139,13 +193,22 @@ def read_json_state(
     return JsonReadResult(data, False)
 
 
-def append_jsonl(path: Path, record: Mapping[str, Any]) -> None:
-    """Append one compact JSON record under a process lock where available."""
+def append_jsonl(
+    path: Path,
+    record: Mapping[str, Any],
+    *,
+    schema_version: int = 1,
+) -> None:
+    """Append one schema-stamped JSON record under an inter-process lock."""
 
+    if type(schema_version) is not int or schema_version <= 0:
+        raise ValueError("schema_version must be a positive integer")
     try:
+        document = dict(record)
+        document["schema_version"] = schema_version
         line = (
             json.dumps(
-                dict(record),
+                document,
                 ensure_ascii=False,
                 sort_keys=True,
                 separators=(",", ":"),
@@ -158,32 +221,12 @@ def append_jsonl(path: Path, record: Mapping[str, Any]) -> None:
     target = Path(path)
     try:
         ensure_private_directory(target.parent)
-        if fcntl is None:
-            with _FALLBACK_APPEND_LOCK:
-                _append_line(target, line)
-        else:
-            _append_line_with_process_lock(target, line)
+        with process_lock(target.with_name(target.name + ".lock")):
+            _append_line(target, line)
     except Exception as exc:
         if isinstance(exc, JsonlAppendError):
             raise
         raise JsonlAppendError("jsonl append failed") from None
-
-
-def _append_line_with_process_lock(target: Path, line: bytes) -> None:
-    lock_path = target.with_name(target.name + ".lock")
-    lock_descriptor = os.open(
-        str(lock_path), os.O_CREAT | os.O_RDWR, 0o600
-    )
-    try:
-        os.fchmod(lock_descriptor, 0o600)
-        fcntl.flock(lock_descriptor, fcntl.LOCK_EX)
-        _append_line(target, line)
-    finally:
-        try:
-            fcntl.flock(lock_descriptor, fcntl.LOCK_UN)
-        finally:
-            os.close(lock_descriptor)
-
 
 def _append_line(target: Path, line: bytes) -> None:
     descriptor = os.open(

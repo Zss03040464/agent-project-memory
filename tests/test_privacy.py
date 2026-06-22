@@ -90,6 +90,47 @@ class PrivacyTests(unittest.TestCase):
         self.assertTrue(result.is_sensitive)
         self.assertIn("secret_assignment", result.categories)
 
+    def test_reviewed_secret_formats_are_digest_only_and_fully_redacted(self) -> None:
+        privacy = import_api("agent_project_memory.privacy")
+        secrets = (
+            "github_" + "pat_" + ("A" * 24),
+            "-----BEGIN " + "ENCRYPTED PRIVATE KEY-----",
+            "COOKIE=private-session-value",
+        )
+
+        for secret in secrets:
+            with self.subTest(kind=secret.split("=", 1)[0][:20]):
+                scan = privacy.scan_sensitive_text(secret)
+                summary = privacy.summarize_prompt(
+                    "before " + secret + " after", max_bytes=256
+                )
+
+                self.assertTrue(scan.is_sensitive)
+                self.assertTrue(privacy.is_digest_only(text=secret))
+                self.assertTrue(summary.redacted)
+                self.assertNotIn(secret, summary.excerpt)
+                self.assertNotIn(secret, repr(scan))
+                self.assertNotIn(secret, repr(summary))
+
+    def test_encrypted_private_key_body_is_not_retained_in_excerpt(self) -> None:
+        privacy = import_api("agent_project_memory.privacy")
+        body = "PRIVATE-BODY-MARKER"
+        pem = "\n".join(
+            [
+                "-----BEGIN " + "ENCRYPTED PRIVATE KEY-----",
+                body,
+                "-----END " + "ENCRYPTED PRIVATE KEY-----",
+            ]
+        )
+
+        summary = privacy.summarize_prompt(
+            "before\n" + pem + "\nafter", max_bytes=512
+        )
+
+        self.assertTrue(summary.redacted)
+        self.assertNotIn(body, summary.excerpt)
+        self.assertNotIn(body, repr(summary))
+
     def test_digest_only_is_selected_for_sensitive_paths_or_content(self) -> None:
         privacy = import_api("agent_project_memory.privacy")
         secret_header = "-----BEGIN " + "PRIVATE KEY-----"
