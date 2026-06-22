@@ -21,6 +21,14 @@ from .bootstrap import (
     bootstrap_project,
     identify_project_root,
 )
+from .completion_gate import GateResult, capture_git_state, run_completion_gate
+from .feedback import PromotionDecision, record_feedback, rollback_promotion
+from .router import (
+    ProjectRecord,
+    RouteDecision,
+    route_project_memory,
+    upsert_project_record,
+)
 from .continuity import (
     ContinuityResult,
     continuity_state_dir,
@@ -64,9 +72,13 @@ __all__ = [
     "ConfigLoadResult",
     "CheckpointResult",
     "BootstrapResult",
+    "GateResult",
     "ContinuityResult",
     "GitIdentity",
     "ProjectRootResult",
+    "ProjectRecord",
+    "PromotionDecision",
+    "RouteDecision",
     "RootClassification",
     "PROCESS_LOCKING_AVAILABLE",
     "AtomicWriteError",
@@ -82,6 +94,7 @@ __all__ = [
     "atomic_write_json",
     "atomic_write_text",
     "bootstrap_project",
+    "capture_git_state",
     "classify_sensitive_path",
     "classify_root",
     "changed_worktree_paths",
@@ -97,6 +110,10 @@ __all__ = [
     "load_config",
     "legacy_checkpoint_refs",
     "mark_recovered",
+    "record_feedback",
+    "rollback_promotion",
+    "route_project_memory",
+    "run_completion_gate",
     "parse_toml_subset",
     "process_lock",
     "process_lock_backend",
@@ -105,5 +122,6 @@ __all__ = [
     "summarize_prompt",
     "write_json_state",
     "write_recovery_artifacts",
+    "upsert_project_record",
 ]
 __version__ = "2.0.0.dev0"
