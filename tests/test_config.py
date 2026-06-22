@@ -211,6 +211,50 @@ class ConfigTests(unittest.TestCase):
             result.diagnostics, ("unsafe or denied trusted roots ignored",)
         )
 
+    def test_sync_root_families_use_uniform_project_depth_rule(self) -> None:
+        config_mod = import_api("agent_project_memory.config")
+        fake_home = self.root / "home"
+        cloud_storage = fake_home / "Library" / "CloudStorage"
+        providers = (
+            cloud_storage / "OneDrive-Personal",
+            cloud_storage / "GoogleDrive-example",
+            fake_home / "OneDrive",
+            fake_home / "Dropbox",
+        )
+        broad_candidates = [cloud_storage]
+        allowed_projects = []
+        for provider in providers:
+            provider.mkdir(parents=True)
+            broad_candidates.extend((provider, provider / "project"))
+            project = provider / "work" / "project"
+            project.mkdir(parents=True)
+            allowed_projects.append(project.resolve())
+        volume = Path("/Volumes/ExternalDisk")
+        broad_candidates.extend((Path("/Volumes"), volume, volume / "project"))
+        allowed_projects.append((volume / "work" / "project").resolve())
+        alias = self.root / "cloud-provider-alias"
+        alias.symlink_to(providers[0], target_is_directory=True)
+        broad_candidates.append(alias)
+
+        config_path = self.root / "config.toml"
+        configured = broad_candidates + [
+            provider / "work" / "project" for provider in providers
+        ] + [volume / "work" / "project"]
+        config_path.write_text(
+            "trusted_roots = [\n"
+            + ",\n".join(f'  "{path}"' for path in configured)
+            + "\n]",
+            encoding="utf-8",
+        )
+
+        with mock.patch.object(Path, "home", return_value=fake_home):
+            result = config_mod.load_config(config_path)
+
+        self.assertEqual(result.config.trusted_roots, tuple(allowed_projects))
+        self.assertEqual(
+            result.diagnostics, ("unsafe or denied trusted roots ignored",)
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

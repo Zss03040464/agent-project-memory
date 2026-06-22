@@ -52,8 +52,8 @@ def ensure_private_directory(path: Path) -> Path:
         candidate = candidate.parent
     for component in reversed(missing):
         component.mkdir(exist_ok=True, mode=0o700)
-        os.chmod(str(component), 0o700)
-    os.chmod(str(directory), 0o700)
+        _set_path_private_mode(component, 0o700)
+    _set_path_private_mode(directory, 0o700)
     return directory
 
 
@@ -74,8 +74,7 @@ def process_lock(path: Path) -> Iterator[None]:
     descriptor = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
     backend = process_lock_backend()
     try:
-        if hasattr(os, "fchmod"):
-            os.fchmod(descriptor, 0o600)
+        _set_fd_private_mode(descriptor, lock_path, 0o600)
         if backend == "fcntl":
             _fcntl.flock(descriptor, _fcntl.LOCK_EX)
         elif backend == "msvcrt":
@@ -120,7 +119,7 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
             dir=str(target.parent),
         )
         temporary = Path(temporary_name)
-        os.fchmod(descriptor, 0o600)
+        _set_fd_private_mode(descriptor, temporary, 0o600)
         with os.fdopen(descriptor, "wb") as stream:
             descriptor = None
             stream.write(payload)
@@ -128,7 +127,7 @@ def atomic_write_bytes(path: Path, payload: bytes) -> None:
             os.fsync(stream.fileno())
         os.replace(str(temporary), str(target))
         temporary = None
-        os.chmod(str(target), 0o600)
+        _set_path_private_mode(target, 0o600)
         _fsync_directory(target.parent)
     except Exception:
         if descriptor is not None:
@@ -149,13 +148,21 @@ def write_json_state(
 ) -> None:
     """Atomically persist a JSON object with a mandatory schema version."""
 
+    atomic_write_json(path, state, schema_version=schema_version)
+
+
+def atomic_write_json(
+    path: Path, document: Mapping[str, Any], *, schema_version: int
+) -> None:
+    """Atomically persist a schema-stamped JSON object."""
+
     if type(schema_version) is not int or schema_version <= 0:
         raise ValueError("schema_version must be a positive integer")
     try:
-        document = dict(state)
-        document["schema_version"] = schema_version
+        payload_document = dict(document)
+        payload_document["schema_version"] = schema_version
         payload = json.dumps(
-            document,
+            payload_document,
             ensure_ascii=False,
             sort_keys=True,
             separators=(",", ":"),
@@ -233,7 +240,7 @@ def _append_line(target: Path, line: bytes) -> None:
         str(target), os.O_CREAT | os.O_APPEND | os.O_WRONLY, 0o600
     )
     try:
-        os.fchmod(descriptor, 0o600)
+        _set_fd_private_mode(descriptor, target, 0o600)
         view = memoryview(line)
         while view:
             written = os.write(descriptor, view)
@@ -244,6 +251,31 @@ def _append_line(target: Path, line: bytes) -> None:
     finally:
         os.close(descriptor)
     _fsync_directory(target.parent)
+
+
+def _set_fd_private_mode(descriptor: int, path: Path, mode: int) -> None:
+    fchmod = getattr(os, "fchmod", None)
+    if callable(fchmod):
+        try:
+            fchmod(descriptor, mode)
+            return
+        except (OSError, NotImplementedError):
+            if process_lock_backend() != "msvcrt":
+                raise
+    _set_path_private_mode(path, mode)
+
+
+def _set_path_private_mode(path: Path, mode: int) -> None:
+    chmod = getattr(os, "chmod", None)
+    if callable(chmod):
+        try:
+            chmod(str(path), mode)
+            return
+        except (OSError, NotImplementedError):
+            if process_lock_backend() != "msvcrt":
+                raise
+    if process_lock_backend() != "msvcrt":
+        raise OSError("private permission enforcement unavailable")
 
 
 def _fsync_directory(directory: Path) -> None:

@@ -186,6 +186,52 @@ class AtomicIoTests(unittest.TestCase):
             [fake_msvcrt.LK_LOCK, fake_msvcrt.LK_UNLCK],
         )
 
+    def test_windows_without_fchmod_writes_json_and_jsonl_end_to_end(self) -> None:
+        io_mod = import_api("agent_project_memory.io")
+        self.assertTrue(
+            hasattr(io_mod, "atomic_write_json"),
+            "atomic_write_json API is required",
+        )
+        fake_msvcrt = _FakeMsvcrt()
+        state_path = self.root / "windows" / "state.json"
+        events_path = self.root / "windows" / "events.jsonl"
+
+        with mock.patch.object(io_mod, "_fcntl", None):
+            with mock.patch.object(io_mod, "_msvcrt", fake_msvcrt):
+                with mock.patch.object(io_mod.os, "fchmod", None):
+                    with mock.patch.object(
+                        io_mod.os, "chmod", wraps=os.chmod
+                    ) as chmod_mock:
+                        io_mod.atomic_write_json(
+                            state_path,
+                            {"phase": "ready"},
+                            schema_version=2,
+                        )
+                        io_mod.append_jsonl(
+                            events_path,
+                            {"event": "checkpoint"},
+                            schema_version=2,
+                        )
+
+        self.assertEqual(
+            json.loads(state_path.read_text(encoding="utf-8")),
+            {"schema_version": 2, "phase": "ready"},
+        )
+        self.assertEqual(
+            json.loads(events_path.read_text(encoding="utf-8")),
+            {"schema_version": 2, "event": "checkpoint"},
+        )
+        self.assertTrue(
+            any(call.args[1] == 0o700 for call in chmod_mock.call_args_list)
+        )
+        self.assertTrue(
+            any(call.args[1] == 0o600 for call in chmod_mock.call_args_list)
+        )
+        self.assertEqual(
+            [call[1] for call in fake_msvcrt.calls],
+            [fake_msvcrt.LK_LOCK, fake_msvcrt.LK_UNLCK],
+        )
+
     def test_write_failure_does_not_echo_payload(self) -> None:
         io_mod = import_api("agent_project_memory.io")
         target = self.root / "state.txt"

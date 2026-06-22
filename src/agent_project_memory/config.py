@@ -7,7 +7,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 
 _FIELDS = {
@@ -294,25 +294,44 @@ def _is_same_or_descendant(path: Path, root: Path) -> bool:
 
 def _is_dangerous_root(path: Path) -> bool:
     home = Path.home().resolve()
-    mobile_documents = (home / "Library" / "Mobile Documents").resolve()
-    volumes = Path("/Volumes").resolve()
     exact_roots = {
         Path(os.sep).resolve(),
         home,
         Path("/Users").resolve(),
-        (home / "Dropbox").resolve(),
-        mobile_documents,
-        volumes,
     }
     if path in exact_roots:
         return True
-    if _is_direct_child(path, mobile_documents) or _is_direct_child(path, volumes):
+    if _is_broad_storage_root(path, home):
         return True
     return _is_same_or_descendant(path, home / ".codex")
 
 
-def _is_direct_child(path: Path, root: Path) -> bool:
-    try:
-        return len(path.relative_to(root).parts) == 1
-    except ValueError:
+def _is_broad_storage_root(path: Path, home: Path) -> bool:
+    containers = (
+        (home / "Library" / "CloudStorage").resolve(),
+        (home / "Library" / "Mobile Documents").resolve(),
+        Path("/Volumes").resolve(),
+    )
+    for container in containers:
+        depth = _relative_depth(path, container)
+        if depth is not None:
+            return depth <= 2
+
+    depth = _relative_depth(path, home)
+    if depth is None or depth == 0:
         return False
+    first_part = path.relative_to(home).parts[0].casefold()
+    is_home_sync_provider = (
+        first_part.startswith("dropbox")
+        or first_part.startswith("onedrive")
+        or first_part.startswith("google drive")
+        or first_part.startswith("googledrive")
+    )
+    return is_home_sync_provider and depth <= 2
+
+
+def _relative_depth(path: Path, root: Path) -> Optional[int]:
+    try:
+        return len(path.relative_to(root).parts)
+    except ValueError:
+        return None
