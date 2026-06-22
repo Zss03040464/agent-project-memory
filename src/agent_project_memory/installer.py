@@ -72,6 +72,14 @@ def _atomic_text(path: Path, text: str, *, mode: int = 0o600) -> None:
             pass
 
 
+def _ensure_private_directory(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        os.chmod(path, 0o700)
+    except OSError:
+        pass
+
+
 def _json_write(path: Path, value: Any) -> None:
     _atomic_text(path, json.dumps(value, ensure_ascii=False, indent=2) + "\n")
 
@@ -208,8 +216,9 @@ def _copy_templates(layout: Layout, force: bool) -> None:
         source / "RECOVERY.template.md": memory / "templates" / "RECOVERY.template.md",
         layout.repo_root / ".agent-memory-ignore": memory / ".agent-memory-ignore",
     }
+    _ensure_private_directory(memory)
     for directory in (memory / "records", memory / "templates", memory / "archives"):
-        directory.mkdir(parents=True, exist_ok=True)
+        _ensure_private_directory(directory)
     for source_path, destination in mapping.items():
         if destination.exists() and not force:
             continue
@@ -329,11 +338,7 @@ def _write_launchers(layout: Layout) -> None:
 
 def _write_continuity_config(layout: Layout) -> None:
     path = layout.target / "continuity" / "config.toml"
-    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    try:
-        os.chmod(path.parent, 0o700)
-    except OSError:
-        pass
+    _ensure_private_directory(path.parent)
     if path.exists():
         return
     content = (

@@ -87,6 +87,11 @@ class InstallerLifecycleTests(unittest.TestCase):
         self.assertTrue((self.target / "project_memory" / "INDEX.md").is_file())
         self.assertTrue((self.target / "continuity" / "config.toml").is_file())
         self.assertEqual(self.target.stat().st_mode & 0o777, 0o700)
+        self.assertEqual((self.target / "project_memory").stat().st_mode & 0o777, 0o700)
+        self.assertEqual(
+            (self.target / "project_memory" / "records").stat().st_mode & 0o777,
+            0o700,
+        )
         self.assertEqual((self.target / "continuity").stat().st_mode & 0o777, 0o700)
         catalog = json.loads(marketplace.read_text(encoding="utf-8"))
         entry = next(item for item in catalog["plugins"] if item["name"] == "agent-project-memory")
