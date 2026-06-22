@@ -1,0 +1,59 @@
+"""Codex command-hook entrypoint with fail-open output."""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any, Dict, Mapping
+
+from .continuity import handle_hook_event
+
+
+def handle_payload(
+    payload: Mapping[str, Any], *, codex_home: Path
+) -> Dict[str, Any]:
+    """Return an official non-blocking Hook output object."""
+
+    try:
+        result = handle_hook_event(payload, codex_home=Path(codex_home))
+        output: Dict[str, Any] = {
+            "continue": True,
+            "suppressOutput": True,
+        }
+        if (
+            result.event == "SessionStart"
+            and result.additional_context
+        ):
+            output["hookSpecificOutput"] = {
+                "hookEventName": "SessionStart",
+                "additionalContext": result.additional_context,
+            }
+        return output
+    except Exception:
+        return {"continue": True, "suppressOutput": True}
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+        if not isinstance(payload, dict):
+            payload = {}
+    except Exception:
+        payload = {}
+    codex_home = Path(
+        os.environ.get("CODEX_HOME") or Path.home() / ".codex"
+    )
+    print(
+        json.dumps(
+            handle_payload(payload, codex_home=codex_home),
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

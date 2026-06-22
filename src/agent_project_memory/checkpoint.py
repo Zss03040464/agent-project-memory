@@ -185,6 +185,21 @@ def legacy_checkpoint_refs(cwd: Path) -> Tuple[str, ...]:
     return tuple(refs)
 
 
+def changed_worktree_paths(cwd: Path) -> Tuple[str, ...]:
+    """Return non-sensitive changed relative paths for continuity summaries."""
+
+    identity = discover_git_identity(Path(cwd))
+    if identity is None:
+        return ()
+    safe: List[str] = []
+    for raw_path in _changed_paths(identity):
+        relative = os.fsdecode(raw_path)
+        path = identity.worktree_root / relative
+        if _path_skip_category(identity.worktree_root, relative, path) is None:
+            safe.append(relative)
+    return tuple(safe)
+
+
 def _should_debounce(event: str, state: Dict[str, object], seconds: int) -> bool:
     if event != "PostToolUse" or seconds <= 0:
         return False
