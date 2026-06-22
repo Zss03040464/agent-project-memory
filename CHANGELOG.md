@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.0 - Unreleased
+
+- Added a Codex plugin manifest, default continuity Hooks, and discoverable project-memory Skill.
+- Added worktree-isolated hidden checkpoints and external checkpoints for protected non-Git projects.
+- Added persistent turn journals and interruption recovery across process restarts.
+- Added safe project bootstrap, exact-project memory routing, evidence-counted feedback promotion, rollback, and a completion gate.
+- Added transactional install, upgrade, uninstall, rollback, and explicit v1 Hook migration for shell and PowerShell.
+- Expanded privacy scanning to HTML, JSON, common configuration, archive listings/text, and binary metadata without printing matched values.
+- Added Ubuntu, macOS, Windows, Python 3.9/3.14, package, plugin, shell, and PowerShell CI declarations.
+
 ## 0.2.0
 
 - Made shell and PowerShell installers idempotent.

@@ -1,28 +1,13 @@
-## Project memory, history index, and recovery workflow
+## Project memory and continuity
 
-Before starting any project setup, debugging, code modification, migration, synchronization, environment repair, backup restoration, or long-running task, read the local project memory index:
+At task start, load project rules first, then route only the exact current project's memory. Do not inject every INDEX entry, feedback event, transcript, or Skill into context.
 
-`project_memory/INDEX.md`
+For Codex, use the installed `project-memory` Skill and `agent-project-memory` CLI. If continuity reports an interrupted turn, inspect project management files, recovery pointers, current Git/worktree state, and the current worktree's checkpoint before reading any bounded transcript tail. Revalidate external state and update task/handoff files before continuing.
 
-If the current task is related to an indexed project or solved issue, read the linked record under:
+Keep responsibilities separate: Memory stores stable reasons and preferences; Skill stores repeatable procedures; Profile stores current identity and output constraints; project files store current facts and progress; continuity stores in-progress evidence.
 
-`project_memory/records/`
+Record corrections in the scoped feedback ledger. One occurrence affects the current task only. Promote the same normalized intent only after at least two distinct turns in the same scope and no conflict.
 
-If a local project path, memory file, or record is missing, damaged, or incomplete, do not assume that the project is gone. Read:
+Before claiming completion, run the completion gate. Missing required evidence, sensitive content, or normal Git-state pollution blocks completion. Disclose warnings and unverified items.
 
-`project_memory/CLOUD.md`
-
-Then follow this recovery order:
-
-1. Search the current local workspace for the same or similar project name.
-2. Check known synchronized folders.
-3. Check Git remotes recorded in the project record.
-4. Check the cloud memory mirror recorded in `CLOUD.md`.
-5. Check sanitized cloud archives recorded in `CLOUD.md`.
-6. If the project still cannot be found, report the missing evidence clearly before creating any replacement.
-
-A missing local path is not proof that a project is gone. Never create, overwrite, or replace a project until the memory index, project record, workspace, sync locations, Git remotes, and cloud backup references have been checked.
-
-After completing a new long-running project, solving a complex issue, completing a migration, or making an important project decision, update `project_memory/INDEX.md` and create or update the corresponding record under `project_memory/records/`.
-
-Never store API keys, private keys, tokens, passwords, credential files, raw personal data, or unfiltered archive contents in project memory. Use `.agent-memory-ignore` before creating any archive.
+Never store credentials, private keys, tokens, cookies, passwords, `auth.json`, sensitive `.env` content, raw tool payloads, or unfiltered archives. Recovery is inspect-first: do not auto-checkout checkpoints, overwrite a worktree, push, or rewrite remote history.

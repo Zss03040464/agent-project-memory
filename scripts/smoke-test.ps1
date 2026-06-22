@@ -15,16 +15,17 @@ foreach ($Script in $Scripts) {
   [void][scriptblock]::Create($Content)
 }
 
-$Target = Join-Path ([System.IO.Path]::GetTempPath()) ("agent-project-memory-ps-" + [System.Guid]::NewGuid().ToString("N"))
+$TestHome = Join-Path ([System.IO.Path]::GetTempPath()) ("agent-project-memory-ps-Home 空格-" + [System.Guid]::NewGuid().ToString("N"))
+$Target = Join-Path $TestHome ".codex"
 try {
-  & .\installers\install-codex.ps1 -TargetDir $Target -DryRun
+  & .\installers\install-codex.ps1 -TargetDir $Target -HomeDir $TestHome -DryRun
   if (Test-Path -LiteralPath $Target) { throw "DryRun created target directory" }
 
   New-Item -ItemType Directory -Force -Path $Target | Out-Null
   Set-Content -LiteralPath (Join-Path $Target "AGENTS.md") -Value "# Existing rules`n" -Encoding UTF8
 
-  & .\installers\install-codex.ps1 -TargetDir $Target -Yes
-  & .\installers\install-codex.ps1 -TargetDir $Target -Yes
+  & .\installers\install-codex.ps1 -TargetDir $Target -HomeDir $TestHome -Yes
+  & .\installers\install-codex.ps1 -Operation upgrade -TargetDir $Target -HomeDir $TestHome -Yes
 
   $Index = Join-Path $Target "project_memory/INDEX.md"
   if (-not (Test-Path -LiteralPath $Index)) { throw "INDEX.md was not created" }
@@ -33,12 +34,12 @@ try {
   $Count = ([regex]::Matches($Rules, "BEGIN AGENT_PROJECT_MEMORY_RULES")).Count
   if ($Count -ne 1) { throw "Managed rule block count was $Count, expected 1" }
 
-  & .\installers\uninstall.ps1 -TargetDir $Target -Yes
+  & .\installers\uninstall.ps1 -TargetDir $Target -HomeDir $TestHome -Yes
   $RulesAfter = Get-Content -LiteralPath (Join-Path $Target "AGENTS.md") -Raw
   if ($RulesAfter.Contains("BEGIN AGENT_PROJECT_MEMORY_RULES")) { throw "Uninstall did not remove managed block" }
   if (-not (Test-Path -LiteralPath $Index)) { throw "Uninstall removed memory data unexpectedly" }
 
   Write-Host "PowerShell smoke test passed."
 } finally {
-  if (Test-Path -LiteralPath $Target) { Remove-Item -LiteralPath $Target -Recurse -Force }
+  if (Test-Path -LiteralPath $TestHome) { Remove-Item -LiteralPath $TestHome -Recurse -Force }
 }

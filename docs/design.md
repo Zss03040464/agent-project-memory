@@ -1,43 +1,61 @@
 # Design
 
-Agent Project Memory uses a local-first registry pattern.
+Agent Project Memory combines a portable Markdown registry with Codex continuity primitives. The design keeps durable evidence small, local, inspectable, and scoped to one project or worktree.
 
-## Components
+## Layers
 
-### `INDEX.md`
+1. **Project evidence**: project rules, task status, handoff, and files on disk.
+2. **Continuity**: a private turn journal, recovery report, and checkpoint pointers.
+3. **Project memory**: a compact index and exact-project records.
+4. **Skill**: repeatable recovery, routing, feedback, and delivery workflows.
+5. **Profile**: current identity and output constraints supplied by the active session.
+6. **Control loop**: selective pre-task loading, evidence-counted feedback promotion, and a completion gate.
 
-A short, searchable registry of known projects, solved issues, workflows, migrations, and durable decisions.
+The layers are deliberately separate. Memory does not replace project facts, Skill does not store every project, and continuity does not claim to preserve unwritten model state.
 
-It should stay brief. Each entry links to a record.
+## Identity and routing
 
-### `records/`
+A Git repository identity is derived from its canonical common Git directory. A worktree identity is derived from canonical worktree root plus worktree Git directory. Branch names and directory basenames are not identities.
 
-Detailed project or issue records. Records contain enough context for an agent to continue work without repeating solved troubleshooting.
+Project memory routing uses canonical roots and stored repository/worktree metadata. `INDEX.md` remains a small pointer table. Only an exact current-project match contributes context; unrelated records are skipped with an explainable routing decision.
 
-### `CLOUD.md`
+## Checkpoints
 
-Cloud backup and recovery references. This file does not upload anything by itself. It tells an agent where to look if local files or paths are missing.
+Git checkpoints use a temporary index and hidden refs:
 
-### `archives/`
+```text
+refs/codex/checkpoints/worktrees/<worktree-id>/latest
+refs/codex/checkpoints/worktrees/<worktree-id>/history/<timestamp>-<tree>
+```
 
-Optional location for sanitized full project archives. Archives are for recovery, not for routine context reading.
+Lock, debounce, and state files are worktree-specific. Legacy v1 refs remain read-only. Sensitive, ignored, generated, nested-repository, oversized, and unsafe paths are filtered. A tracked sensitive change retains the committed version instead of copying the sensitive working-tree content.
 
-### managed global rule block
+For non-Git projects that must not receive `.git`, an external Git directory and temporary index live under private continuity state. Safe dedicated directories under configured trusted roots may be initialized without creating a commit or remote.
 
-The installer can insert a managed Markdown block into an existing global rules file. The block is bounded by `BEGIN AGENT_PROJECT_MEMORY_RULES` and `END AGENT_PROJECT_MEMORY_RULES`, so repeated installation can replace the block instead of appending duplicates.
+## Turn journal
 
-## Why not put everything in one global rules file?
+The journal has `open`, `compacted`, `closed`, `interrupted`, and `recovered` states. Events are combined because no single Hook event is guaranteed to cover every failure:
 
-Large global rule files are harder to maintain and harder for agents to scan accurately. A small index plus linked records keeps the global rules stable while allowing the memory system to grow.
+- prompt submission opens or updates a turn;
+- completed tool use updates bounded evidence and attempts a checkpoint;
+- pre-compaction and stop force checkpoints;
+- session start freezes current disk state before classifying an older open turn as interrupted.
 
-## Why local-first?
+Recovery files contain redacted, bounded metadata and pointers. Raw tool payloads and full transcript tails are not copied.
 
-Local files are transparent, easy to inspect, easy to version, and supported by most coding agents.
+## Feedback and delivery
 
-## Why cloud references?
+Feedback is scoped by category, project/global scope, normalized intent, and distinct session/turn evidence. Promotion requires at least two distinct pieces of evidence and no conflict. Promotions and rollbacks remain traceable in the private ledger.
 
-Cloud storage adds a recovery layer when local folders are renamed, moved, damaged, or missing.
+The completion gate separates hard failures from warnings. Missing required evidence, sensitive content, and normal Git-state pollution are hard failures. Optional environment limitations and missing management documents are warnings that must be disclosed.
 
-## Why not automatic upload by default?
+## Distribution
 
-Automatic upload can accidentally expose secrets or private data. This project intentionally starts with explicit records and safety-first archive rules.
+The Codex plugin uses default discovery:
+
+- `.codex-plugin/plugin.json` for plugin metadata;
+- `hooks/hooks.json` for Hooks;
+- `skills/project-memory/SKILL.md` for the Skill;
+- `scripts/hook-entry.py` and bundled `src/` for dependency-free Hook execution.
+
+The manifest intentionally omits an unsupported top-level `hooks` field. Shell and PowerShell entrypoints call one transactional Python installer, so lifecycle behavior is consistent across platforms.

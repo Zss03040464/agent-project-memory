@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import datetime as dt
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 
-from .io import append_jsonl, atomic_write_text, ensure_private_directory
+from .io import (
+    append_jsonl,
+    atomic_write_text,
+    ensure_private_directory,
+    write_json_state,
+)
 
 
 @dataclass(frozen=True)
@@ -44,6 +50,7 @@ def record_feedback(
         "normalized_intent": normalized_intent,
         "evidence_pointer": evidence_pointer,
         "conflict": conflict,
+        "timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     append_jsonl(base / "events.jsonl", event)
     events = _events(base / "events.jsonl")
@@ -61,16 +68,43 @@ def record_feedback(
     }
     promoted = len(evidence) >= max(2, threshold) and not blocked
     if promoted:
-        _write_promotion(base, rule_id, category, scope, normalized_intent, len(evidence))
+        _write_promotion(
+            base,
+            rule_id,
+            category,
+            scope,
+            normalized_intent,
+            len(evidence),
+            related,
+        )
     return PromotionDecision(rule_id, promoted, len(evidence), blocked)
 
 
 def rollback_promotion(root: Path, rule_id: str, *, reason: str) -> None:
     base = ensure_private_directory(Path(root))
+    timestamp = dt.datetime.now(dt.timezone.utc).isoformat()
     append_jsonl(
         base / "events.jsonl",
-        {"event": "rollback", "rule_id": rule_id, "reason": reason},
+        {
+            "event": "rollback",
+            "rule_id": rule_id,
+            "reason": reason,
+            "timestamp": timestamp,
+        },
     )
+    promotion_path = base / "promotions" / (rule_id + ".json")
+    try:
+        promotion = json.loads(promotion_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        promotion = {"rule_id": rule_id}
+    promotion.update(
+        {
+            "active": False,
+            "rolled_back_at": timestamp,
+            "rollback_reason": reason,
+        }
+    )
+    write_json_state(promotion_path, promotion, schema_version=1)
     learned = base / "learned-rules.md"
     existing = learned.read_text(encoding="utf-8") if learned.exists() else "# Learned Rules\n"
     atomic_write_text(
@@ -105,7 +139,31 @@ def _write_promotion(
     scope: str,
     intent: str,
     count: int,
+    related: List[Dict[str, object]],
 ) -> None:
+    sources = sorted(
+        {
+            str(item.get("evidence_pointer"))
+            for item in related
+            if item.get("normalized_intent") == intent
+            and not item.get("conflict")
+        }
+    )
+    write_json_state(
+        root / "promotions" / (rule_id + ".json"),
+        {
+            "rule_id": rule_id,
+            "category": category,
+            "scope": scope,
+            "normalized_intent": intent,
+            "destination": _promotion_destination(category, scope),
+            "evidence_count": count,
+            "evidence_pointers": sources,
+            "active": True,
+            "promoted_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        },
+        schema_version=1,
+    )
     learned = root / "learned-rules.md"
     text = learned.read_text(encoding="utf-8") if learned.exists() else "# Learned Rules\n"
     marker = "- `{}`".format(rule_id)
@@ -118,3 +176,20 @@ def _write_promotion(
             marker, scope, count, intent
         ),
     )
+
+
+def _promotion_destination(category: str, scope: str) -> str:
+    normalized = category.casefold().replace("_", "-")
+    if normalized in {
+        "workflow",
+        "procedure",
+        "process",
+        "test-command",
+        "tool-usage",
+    }:
+        return "skill"
+    if normalized in {"safety", "security", "routing", "invariant"}:
+        return "global-rules"
+    if normalized in {"project-fact", "project-status", "temporary-fact"}:
+        return "project-files"
+    return "profile-memory"

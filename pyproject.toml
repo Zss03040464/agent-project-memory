@@ -1,13 +1,17 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-project-memory"
-version = "2.0.0.dev0"
+version = "2.0.0"
 description = "Portable project memory and Codex continuity primitives"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
+
+[project.scripts]
+agent-project-memory = "agent_project_memory.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

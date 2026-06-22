@@ -76,6 +76,43 @@ class HookEntryTests(unittest.TestCase):
                 self.assertTrue(output["suppressOutput"])
                 self.assertNotIn("decision", output)
 
+    def test_user_prompt_submit_injects_only_exact_project_memory(self) -> None:
+        hook_entry = import_api("agent_project_memory.hook_entry")
+        router = import_api("agent_project_memory.router")
+        other = self.root / "other"
+        other.mkdir()
+        memory = self.codex_home / "project_memory"
+        router.upsert_project_record(
+            memory,
+            router.ProjectRecord(
+                project_id="current-project",
+                canonical_roots=(str(self.repo.resolve()),),
+                purpose="continue the matching project safely",
+                authoritative_files=("AGENTS.md", "任务.md"),
+                last_verified_at="2026-06-22T00:00:00+00:00",
+            ),
+        )
+        router.upsert_project_record(
+            memory,
+            router.ProjectRecord(
+                project_id="unrelated-project",
+                canonical_roots=(str(other.resolve()),),
+                purpose="unrelated private context",
+                authoritative_files=("AGENTS.md",),
+                last_verified_at="2026-06-22T00:00:00+00:00",
+            ),
+        )
+
+        output = hook_entry.handle_payload(
+            payload("UserPromptSubmit", self.repo, prompt="continue"),
+            codex_home=self.codex_home,
+        )
+
+        specific = output["hookSpecificOutput"]
+        self.assertEqual(specific["hookEventName"], "UserPromptSubmit")
+        self.assertIn("continue the matching project safely", specific["additionalContext"])
+        self.assertNotIn("unrelated private context", specific["additionalContext"])
+
     def test_hook_failure_fails_open_without_error_or_payload_leak(self) -> None:
         hook_entry = import_api("agent_project_memory.hook_entry")
         marker = "PRIVATE-HOOK-PAYLOAD"

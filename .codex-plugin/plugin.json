@@ -1,0 +1,29 @@
+{
+  "name": "agent-project-memory",
+  "version": "2.0.0",
+  "description": "Local project memory and interruption-safe continuity for Codex.",
+  "author": {
+    "name": "Vivian",
+    "url": "https://github.com/Zss03040464"
+  },
+  "homepage": "https://github.com/Zss03040464/agent-project-memory",
+  "repository": "https://github.com/Zss03040464/agent-project-memory",
+  "license": "MIT",
+  "keywords": ["codex", "continuity", "project-memory", "recovery"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Project Memory",
+    "shortDescription": "Recover interrupted work and route project memory safely.",
+    "longDescription": "Keeps local turn evidence, isolated Git worktree checkpoints, exact-project memory routing, feedback promotion, and delivery checks available across Codex sessions.",
+    "developerName": "Vivian",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/Zss03040464/agent-project-memory",
+    "defaultPrompt": [
+      "Recover the interrupted work in this project.",
+      "Route only the memory for the current project.",
+      "Run the project completion gate."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

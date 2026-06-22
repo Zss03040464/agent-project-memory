@@ -1,0 +1,67 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/hook-entry.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\scripts\\hook-entry.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/hook-entry.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\scripts\\hook-entry.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/hook-entry.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\scripts\\hook-entry.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/hook-entry.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\scripts\\hook-entry.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/hook-entry.py\"",
+            "commandWindows": "py -3 \"%PLUGIN_ROOT%\\scripts\\hook-entry.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
