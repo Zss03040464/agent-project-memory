@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+import dataclasses
 from pathlib import Path
 from unittest import mock
 
@@ -92,6 +93,36 @@ class HookEntryTests(unittest.TestCase):
             output, {"continue": True, "suppressOutput": True}
         )
         self.assertNotIn(marker, rendered)
+
+    def test_hook_automatically_bootstraps_trusted_marked_project(self) -> None:
+        hook_entry = import_api("agent_project_memory.hook_entry")
+        config_mod = import_api("agent_project_memory.config")
+        project = self.root / "Workspace" / "code" / "new-project"
+        project.mkdir(parents=True)
+        (project / "pyproject.toml").write_text(
+            "[project]\nname='demo'\n", encoding="utf-8"
+        )
+        config = dataclasses.replace(
+            config_mod.Config.defaults(),
+            trusted_roots=((self.root / "Workspace" / "code").resolve(),),
+        )
+
+        with mock.patch(
+            "agent_project_memory.hook_entry.load_config",
+            return_value=config_mod.ConfigLoadResult(config),
+        ):
+            output = hook_entry.handle_payload(
+                payload(
+                    "UserPromptSubmit",
+                    project,
+                    prompt="start project",
+                ),
+                codex_home=self.codex_home,
+            )
+
+        self.assertTrue(output["continue"])
+        self.assertTrue((project / ".git").is_dir())
+        self.assertTrue(list((self.codex_home / "continuity" / "repos").rglob("turn.json")))
 
 
 if __name__ == "__main__":

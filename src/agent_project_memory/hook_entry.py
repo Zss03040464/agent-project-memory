@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
+from .bootstrap import bootstrap_project
+from .config import load_config
 from .continuity import handle_hook_event
 
 
@@ -17,6 +19,13 @@ def handle_payload(
     """Return an official non-blocking Hook output object."""
 
     try:
+        cwd = Path(str(payload.get("cwd") or "."))
+        config_result = load_config(
+            Path(codex_home) / "continuity" / "config.toml"
+        )
+        bootstrap_project(
+            cwd, config=config_result.config, codex_home=Path(codex_home)
+        )
         result = handle_hook_event(payload, codex_home=Path(codex_home))
         output: Dict[str, Any] = {
             "continue": True,

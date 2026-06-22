@@ -15,6 +15,12 @@ from .checkpoint import (
     create_git_checkpoint,
     legacy_checkpoint_refs,
 )
+from .bootstrap import (
+    BootstrapResult,
+    ProjectRootResult,
+    bootstrap_project,
+    identify_project_root,
+)
 from .continuity import (
     ContinuityResult,
     continuity_state_dir,
@@ -57,8 +63,10 @@ __all__ = [
     "Config",
     "ConfigLoadResult",
     "CheckpointResult",
+    "BootstrapResult",
     "ContinuityResult",
     "GitIdentity",
+    "ProjectRootResult",
     "RootClassification",
     "PROCESS_LOCKING_AVAILABLE",
     "AtomicWriteError",
@@ -73,6 +81,7 @@ __all__ = [
     "atomic_write_bytes",
     "atomic_write_json",
     "atomic_write_text",
+    "bootstrap_project",
     "classify_sensitive_path",
     "classify_root",
     "changed_worktree_paths",
@@ -83,6 +92,7 @@ __all__ = [
     "ensure_private_directory",
     "handle_hook_event",
     "index_transcript_tail",
+    "identify_project_root",
     "is_digest_only",
     "load_config",
     "legacy_checkpoint_refs",
