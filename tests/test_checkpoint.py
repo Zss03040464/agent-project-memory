@@ -101,6 +101,28 @@ class GitCheckpointTests(unittest.TestCase):
                 0o600,
             )
 
+    def test_clean_worktree_gets_head_baseline_ref_without_new_commit(self) -> None:
+        checkpoint = import_api("agent_project_memory.checkpoint")
+        second = self.root / "clean-second"
+        git(self.repo, "worktree", "add", "--detach", str(second), "HEAD")
+        before = repository_snapshot(second)
+        head = git_text(second, "rev-parse", "HEAD")
+
+        result = checkpoint.create_git_checkpoint(second, event="SessionStart")
+
+        self.assertFalse(result.created)
+        self.assertEqual(result.reason, "head-baseline")
+        self.assertEqual(result.commit, head)
+        self.assertEqual(git_text(second, "rev-parse", result.latest_ref), head)
+        self.assertEqual(repository_snapshot(second), before)
+        history = git_text(
+            second,
+            "for-each-ref",
+            "--format=%(refname)",
+            result.history_prefix,
+        )
+        self.assertEqual(history, "")
+
     def test_checkpoint_never_changes_head_branch_index_or_worktree(self) -> None:
         checkpoint = import_api("agent_project_memory.checkpoint")
         (self.repo / "tracked.txt").write_text("changed\n", encoding="utf-8")

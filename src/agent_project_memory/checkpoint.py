@@ -97,6 +97,38 @@ def create_git_checkpoint(
             scan_bytes=scan_bytes,
         )
         if not candidates:
+            latest_commit = _read_ref(identity.worktree_root, latest_ref)
+            if identity.head and not latest_commit:
+                tree = _git_text(
+                    identity.worktree_root,
+                    "rev-parse",
+                    "HEAD^{tree}",
+                )
+                _git(identity.worktree_root, "update-ref", latest_ref, identity.head)
+                write_json_state(
+                    state_dir / "state.json",
+                    {
+                        "last_checkpoint_at": dt.datetime.now(
+                            dt.timezone.utc
+                        ).timestamp(),
+                        "last_commit": identity.head,
+                        "last_tree": tree,
+                        "latest_ref": latest_ref,
+                        "worktree_id": identity.worktree_id,
+                    },
+                    schema_version=STATE_SCHEMA_VERSION,
+                )
+                return CheckpointResult(
+                    False,
+                    "head-baseline",
+                    identity,
+                    commit=identity.head,
+                    tree=tree,
+                    latest_ref=latest_ref,
+                    history_prefix=history_prefix,
+                    state_dir=state_dir,
+                    skipped_categories=skipped,
+                )
             return CheckpointResult(
                 False,
                 "no-allowed-changes",
