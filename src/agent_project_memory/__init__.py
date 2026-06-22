@@ -8,6 +8,13 @@ from .config import (
     load_config,
     parse_toml_subset,
 )
+from .checkpoint import (
+    CheckpointResult,
+    checkpoint_refs,
+    create_git_checkpoint,
+    legacy_checkpoint_refs,
+)
+from .identity import GitIdentity, discover_git_identity
 from .io import (
     PROCESS_LOCKING_AVAILABLE,
     AtomicWriteError,
@@ -37,6 +44,8 @@ from .privacy import (
 __all__ = [
     "Config",
     "ConfigLoadResult",
+    "CheckpointResult",
+    "GitIdentity",
     "RootClassification",
     "PROCESS_LOCKING_AVAILABLE",
     "AtomicWriteError",
@@ -52,9 +61,13 @@ __all__ = [
     "atomic_write_text",
     "classify_sensitive_path",
     "classify_root",
+    "checkpoint_refs",
+    "create_git_checkpoint",
+    "discover_git_identity",
     "ensure_private_directory",
     "is_digest_only",
     "load_config",
+    "legacy_checkpoint_refs",
     "parse_toml_subset",
     "process_lock",
     "process_lock_backend",
