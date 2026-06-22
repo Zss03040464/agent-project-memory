@@ -9,7 +9,7 @@ Date: 2026-06-22 CST
 - Baseline commit: `8d8a746cb430cda53ea61539ccb6fbd8b2c44291`
 - Development branch: `feat/codex-continuity-v2`
 - Development worktree:
-  `/Users/vivian/.config/superpowers/worktrees/agent-project-memory/feat-codex-continuity-v2`
+  `$HOME/.config/superpowers/worktrees/agent-project-memory/feat-codex-continuity-v2`
 - Latest observed CI run for baseline commit: successful Ubuntu `CI` workflow,
   run `27818870511`.
 - Release: none.
@@ -82,7 +82,7 @@ Hook JSON schemas at tag `rust-v0.142.0-alpha.6`.
 
 Backup directory:
 
-`/Users/vivian/.codex/backups/codex-continuity-v2-20260622_152110_CST`
+`$CODEX_HOME/backups/codex-continuity-v2-20260622_152110_CST`
 
 The backup contains the existing global rules, config, Hook configuration and
 script, rules appendix, and this task project's four management files.

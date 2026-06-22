@@ -115,6 +115,13 @@ class PluginPackagingTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("Plugin validation passed", result.stdout)
 
+    def test_public_audits_do_not_contain_machine_home_paths(self) -> None:
+        for audit in (ROOT / "docs" / "audits").glob("*.md"):
+            text = audit.read_text(encoding="utf-8")
+            with self.subTest(audit=audit.name):
+                self.assertNotIn("/Users/", text)
+                self.assertNotIn("C:\\Users\\", text)
+
 
 class CliAndSkillTests(unittest.TestCase):
     def test_cli_routes_only_the_current_project(self) -> None:

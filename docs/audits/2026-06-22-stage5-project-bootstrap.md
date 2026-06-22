@@ -44,20 +44,12 @@ git diff --check: passed
 
 No directories were initialized during this audit.
 
-- existing Git:
-  - `/Users/vivian/Workspace/Course/数据库原理/qimo`
-  - `/Users/vivian/Workspace/github_code/computer-use-fallback-mac`
-  - `/Users/vivian/Workspace/code/agent-project-memory`
-- safe auto-init candidates after real installation:
-  - `/Users/vivian/Workspace/code/虚拟鼠标`
-  - `/Users/vivian/Workspace/code/codex优化`
-- external checkpoint candidates:
-  - `/Users/vivian/Documents/Codex/2026-06-01/macos26-codex-macos15-macos26-users-vivian`
-  - `/Users/vivian/Workspace/code/单子`
-  - `/Users/vivian/.gemini/antigravity/mcp/computer-use-fallback-mac`
-- excluded:
-  - `/Users/vivian/.codex`
-  - `/Users/vivian/Downloads/dotfiles`
+- 3 reviewed directories were existing Git projects.
+- 2 dedicated marked directories were safe auto-init candidates after real
+  installation.
+- 3 established non-Git directories required external checkpoints.
+- 2 dangerous or denied roots were excluded.
 
 The classification is a current audit result, not permission to batch mutate
-all paths. Real bootstrap remains event-driven and safety checked.
+all paths. Machine-specific paths stay in private task records; real bootstrap
+remains event-driven and safety checked.
