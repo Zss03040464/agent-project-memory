@@ -164,6 +164,12 @@ pwsh -NoProfile -File scripts/smoke-test.ps1
 
 CI declares Ubuntu, macOS, and Windows runners for Python 3.9 and 3.14, runs real PowerShell on Windows, builds the package, scans archive listings, and validates plugin packaging.
 
+The current local acceptance evidence is recorded in
+[real install and recovery acceptance](docs/audits/2026-06-23-stage9-10-real-install-acceptance.md)
+and [rollback and platform gate](docs/audits/2026-06-23-stage11-rollback-and-platform-gate.md).
+The branch has not been pushed, so these reports do not claim that its declared
+remote Windows job has run.
+
 ## Security
 
 The project is local-first and uploads nothing by itself. Do not put credentials, private keys, tokens, cookies, passwords, `auth.json`, sensitive `.env` content, browser profiles, or raw personal data into records, checkpoints, logs, fixtures, examples, or archives.
@@ -174,4 +180,6 @@ Recovery is inspect-first. Never automatically checkout a checkpoint, overwrite 
 
 Repository development uses an isolated branch/worktree and test-driven changes. Runtime Hook code remains standard-library-only. Do not push, open a pull request, merge, tag, or delete remote branches without explicit publication authorization.
 
-See [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [CHANGELOG.md](CHANGELOG.md).
+See [AGENTS.md](AGENTS.md), [CONTRIBUTING.md](CONTRIBUTING.md),
+[CHANGELOG.md](CHANGELOG.md), and the local
+[2.0.0 release preparation](docs/release-2.0.0.md).

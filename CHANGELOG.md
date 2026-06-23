@@ -9,6 +9,9 @@
 - Added transactional install, upgrade, uninstall, rollback, and explicit v1 Hook migration for shell and PowerShell.
 - Expanded privacy scanning to HTML, JSON, common configuration, archive listings/text, and binary metadata without printing matched values.
 - Added Ubuntu, macOS, Windows, Python 3.9/3.14, package, plugin, shell, and PowerShell CI declarations.
+- Enforced private permissions for installed project-memory state and added a regression test for machine-specific paths in public audits.
+- Anchored a clean worktree's first hidden `latest` ref to its existing HEAD without creating a commit or changing normal Git state.
+- Completed isolated rollback, real Linux, PowerShell, real repository/worktree, and full Codex restart acceptance.
 
 ## 0.2.0
 
