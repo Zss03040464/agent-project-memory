@@ -19,7 +19,7 @@ Status: local release candidate; not published.
 
 ## Local release candidate evidence
 
-- macOS Python 3.9 and 3.14: 121 tests on each runtime;
+- macOS Python 3.9 and 3.14: 123 tests on each runtime;
 - Ubuntu x86_64 Python 3.12: 121 tests;
 - PowerShell 7.6.3: lifecycle smoke passed;
 - real Codex install, trust, restart, interruption recovery, and Skill discovery
@@ -27,6 +27,10 @@ Status: local release candidate; not published.
 - real checkout plus detached Codex worktree remained unchanged outside hidden
   refs and private continuity state;
 - package, plugin, privacy, documentation-link, and Git-state gates passed.
+- the clean release candidate passed its own completion gate; detector source
+  and fake test fixtures no longer create false positives, while real sensitive
+  paths, high-confidence credentials, and configuration assignments still
+  block delivery.
 
 See the stage 9–11 audit reports for exact limits. The current branch has not
 run on a remote Windows runner because it has not been pushed.

@@ -34,9 +34,13 @@ archive-by-default data.
 
 ### macOS
 
-- Python 3.9 and 3.14 each passed 121 tests.
+- Python 3.9 and 3.14 each passed 123 tests after the final completion-gate
+  regression fix.
 - Package compilation, plugin validation, privacy scan, POSIX shell smoke, real
   Codex plugin/Skill discovery, Hook trust, and full application restart passed.
+- The final clean branch passed its own completion gate with all seven required
+  evidence categories. Only the expected warnings for optional Chinese project
+  management files in this public plugin repository remained.
 
 ### Linux
 
@@ -54,6 +58,12 @@ shell smoke: 8 tests, 0 failures
 The temporary Linux directory and its temporary npm prefix were removed by a
 shell trap. No service, firewall, deployment, or persistent server file was
 changed.
+
+After the platform-neutral completion-gate policy fix, a fresh archive transfer
+was attempted. The SSH endpoint timed out during banner exchange, so no newer
+Linux result is claimed. The changed policy and both new regression tests did
+pass on the supported Python 3.9 and 3.14 runtimes locally; the earlier Linux
+result above remains the latest Linux execution evidence.
 
 ### PowerShell and Windows boundary
 
@@ -80,6 +90,9 @@ the first publication-time check after explicit push or pull-request authority.
 - backup integrity and sandbox restore: passed;
 - macOS and Linux execution: passed;
 - native PowerShell execution: passed;
+- self-hosting completion gate: passed without weakening high-confidence token,
+  private-key, authentication-header, sensitive-path, or config-assignment
+  blocking;
 - public audit path hygiene: passed;
 - no push, pull request, merge, tag, or remote-history rewrite: confirmed;
 - Windows runner execution: not claimed because publication is prohibited in

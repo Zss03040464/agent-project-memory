@@ -12,6 +12,7 @@
 - Enforced private permissions for installed project-memory state and added a regression test for machine-specific paths in public audits.
 - Anchored a clean worktree's first hidden `latest` ref to its existing HEAD without creating a commit or changing normal Git state.
 - Completed isolated rollback, real Linux, PowerShell, real repository/worktree, and full Codex restart acceptance.
+- Made the completion privacy gate self-hosting without weakening checks for sensitive paths, high-confidence credentials, or configuration assignments.
 
 ## 0.2.0
 
