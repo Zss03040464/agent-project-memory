@@ -1,53 +1,44 @@
-# Project Memory Skill
+---
+name: project-memory
+description: Use when a Codex task may depend on prior project decisions, interrupted work, moved repositories, recurring user corrections, or delivery evidence.
+---
 
-## Purpose
+# Project Memory
 
-This skill gives coding agents a persistent project memory workflow. It helps agents recover project context, avoid repeated troubleshooting, locate renamed or moved projects, and use cloud backup references before recreating or overwriting missing work.
+Use exact-project routing and disk evidence to continue work without loading unrelated history.
 
-## When to use
+## Start or recover
 
-Use this skill before starting:
+1. Read project `AGENTS.md`, `交接.md`, `任务.md`, and `用户.md` in the project-defined order.
+2. Run `agent-project-memory route --memory-root "$CODEX_HOME/project_memory" --cwd "$PWD" --json` and load only the exact project match.
+3. If continuity reports an interrupted turn, inspect its `recovery.md`, current Git/worktree state, and worktree-specific checkpoint before any transcript tail.
+4. Revalidate external services and GUI state; continuity proves saved local evidence, not live external state or unwritten reasoning.
+5. Update project management files before resuming costly work.
 
-- project setup
-- debugging
-- codebase modification
-- environment repair
-- toolchain configuration
-- migration
-- synchronization
-- backup restoration
-- long-running user projects
-- any task that may depend on previous decisions
+Do not read every INDEX entry, every feedback event, or a full transcript into the prompt.
 
-## Required first step
+## Layers
 
-Before acting, read the local project memory index:
+- Memory: stable reasons, preferences, decisions, and known traps.
+- Skill: repeatable workflow, commands, and checklists.
+- Profile: current identity and output constraints.
+- continuity: in-progress turn journal, checkpoint pointers, and recovery evidence.
+- Project files: current facts, plan, status, and handoff.
 
-`project_memory/INDEX.md`
+Route by canonical root and repo/worktree identity. A similar basename is not an exact project match.
 
-If the current task matches any indexed project or issue, read the linked record under:
+## New projects and checkpoints
 
-`project_memory/records/`
+The Hook classifies the current project automatically. Existing Git repositories keep their normal Git state untouched. Safe dedicated directories may receive `git init`; other non-Git projects use external checkpoint metadata and must not gain a project `.git` directory. Worktree refs, locks, debounce state, and recovery state remain isolated.
 
-If local paths are missing, do not assume the project is lost. Follow the recovery order in:
+## Feedback
 
-`project_memory/CLOUD.md`
+Record a correction in the private feedback ledger. Do not promote it after one occurrence. The same normalized intent needs at least 2 distinct sessions or turns in the same scope and no conflict. Promotions retain source count, scope, and rollback evidence; temporary project facts stay in project files.
 
-## Core rule
+## Delivery
 
-A missing local path is not proof that the project is gone. Search local memory, workspace paths, sync folders, Git remotes, and cloud backup references before creating a replacement project.
+At task start, save the normal Git baseline with `agent-project-memory snapshot --project-root "$PWD" --output <private-path>`. Before claiming completion, run the `completion gate` through `agent-project-memory gate --baseline <private-path>`, explicitly requiring tests, management-file consistency, checkpoint coverage, and every hard user requirement. Missing evidence, sensitive content, or Git-state pollution is a hard failure. Environment limitations and missing optional management files are warnings to disclose. A Hook may diagnose but must not trap Codex in an endless Stop loop.
 
-## Update rule
+## Safety
 
-When a new durable project, solved issue, migration, or important decision is completed, update:
-
-- `project_memory/INDEX.md`
-- the relevant file under `project_memory/records/`
-
-If a cloud mirror is configured, update the cloud copy as well.
-
-## Safety rule
-
-Never include secrets, private keys, tokens, passwords, credential files, raw personal data, machine-specific private paths, or unfiltered dependency directories in project records or archives.
-
-Use `.agent-memory-ignore` when creating project archives.
+Never store or print secrets, private keys, tokens, cookies, passwords, `auth.json`, sensitive `.env` content, raw tool responses, or unfiltered archives. Recovery is inspect-first: do not automatically checkout a checkpoint, overwrite a worktree, push, or alter remote history.

@@ -1,55 +1,43 @@
 # Security
 
-Agent Project Memory is designed to avoid exposing private information.
+Agent Project Memory is local-first, fail-open for Codex availability, and fail-closed for publishing sensitive material.
 
-## Do not store
+## Never record
 
-Never store these in public records, examples, or cloud archives:
+- passwords, API keys, access or refresh tokens;
+- private or SSH keys;
+- authorization headers, cookies, browser profiles, or credential stores;
+- `auth.json` or sensitive `.env` content;
+- raw tool requests/responses, full process environments, or unfiltered transcript tails;
+- real personal data in public examples or test fixtures.
 
-- passwords
-- API keys
-- access tokens
-- refresh tokens
-- private keys
-- SSH keys
-- cookie jars
-- browser profiles
-- credential JSON files
-- raw personal data
-- private account identifiers
-- sensitive machine-specific paths in public examples
+Prompts are byte-bounded and redacted. High-risk prompts retain only a digest. Diagnostics report categories and paths, never matched values.
 
-## Public examples
+## Checkpoint boundaries
 
-Public examples must use fictional names only.
+Automated checkpoints exclude credential filenames, keys, browser state, dependency/cache/build directories, ignored files, nested repositories, oversized files, and content that matches reviewed secret patterns. Symlinks are stored as links without reading external targets. Git LFS paths use the clean filter.
 
-Use placeholders such as:
+Normal branch, `HEAD`, worktree content, and user staging must remain unchanged. Recovery never automatically checks out a hidden checkpoint.
 
-```text
-<workspace>/example-project
-CloudDrive/Agent_Project_Memory/
-https://github.com/example/example-project.git
-```
+## Project bootstrap boundaries
 
-Do not use real user names, real emails, real device names, private repository names, or private project names.
+Filesystem roots, broad home roots, Downloads roots, Codex state/plugin caches, system directories, broad synchronized roots, symlink escapes, and parents containing nested Git repositories are not automatically initialized or recursively scanned.
 
-## Installer safety
+Trusted roots still require a dedicated empty directory or a clear project marker. Other non-Git projects use external private checkpoint metadata.
 
-Installers must be idempotent. They must not duplicate the managed rule block, and they must not overwrite user `INDEX.md` or `CLOUD.md` by default.
+## Installer boundaries
 
-Any modification to an existing rules file is backed up first. Template overwrites require `--force-template` or `-ForceTemplate` and also create backups.
+Install, upgrade, and uninstall first snapshot every managed path. Failures restore the previous state. `--backup`/`-Backup` expands the snapshot to include project-memory and continuity data. Existing user records and rules outside the managed block are preserved.
 
-## Archive safety
+The v1 migration option removes only a legacy command that resolves to the known `git_checkpoint.py`; the script and old refs remain available in backup/read-only form. Plugin activation uses the normal Codex command and trust flow, never the dangerous Hook-trust bypass.
 
-Before uploading archives to any cloud service:
+## Scanner coverage
 
-1. Use `.agent-memory-ignore`.
-2. Inspect the archive file list.
-3. Confirm that no secrets or personal files are included.
-4. Prefer source files and documentation over raw machine state.
+The repository scanner checks text, HTML, JSON, common configuration files, archive member names, bounded archive text, and bounded binary metadata. It never extracts archives and never prints matched values.
 
-## Default exclusions
+Before publishing an archive:
 
-The default ignore file excludes common secret files, dependency directories, build outputs, caches, and large generated files.
-
-Review it before every archive operation.
+1. apply `.agent-memory-ignore`;
+2. inspect the archive listing;
+3. run `python3 scripts/privacy_scan.py`;
+4. confirm examples contain only fictional placeholders.

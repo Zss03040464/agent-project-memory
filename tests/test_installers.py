@@ -10,6 +10,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BEGIN = "<!-- BEGIN AGENT_PROJECT_MEMORY_RULES -->"
 END = "<!-- END AGENT_PROJECT_MEMORY_RULES -->"
+POSIX_SHELL_ONLY = unittest.skipIf(
+    os.name == "nt", "POSIX shell installer is covered on POSIX runners"
+)
 
 
 def run_cmd(args: list[str], *, cwd: Path = ROOT) -> subprocess.CompletedProcess[str]:
@@ -30,11 +33,13 @@ class InstallerSmokeTests(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
 
+    @POSIX_SHELL_ONLY
     def test_dry_run_does_not_write_files(self) -> None:
         target = self.tmp / ".codex"
         run_cmd(["bash", "installers/install-codex.sh", "--target", str(target), "--dry-run"])
         self.assertFalse(target.exists(), "dry-run must not create the target directory")
 
+    @POSIX_SHELL_ONLY
     def test_install_creates_expected_memory_files(self) -> None:
         target = self.tmp / ".codex"
         run_cmd(["bash", "installers/install-codex.sh", "--target", str(target), "--yes"])
@@ -46,6 +51,7 @@ class InstallerSmokeTests(unittest.TestCase):
         self.assertTrue((target / "project_memory/.agent-memory-ignore").is_file())
         self.assertTrue((target / "PROJECT_MEMORY_RULES_TO_ADD.md").is_file())
 
+    @POSIX_SHELL_ONLY
     def test_managed_block_is_idempotent(self) -> None:
         target = self.tmp / ".codex"
         target.mkdir(parents=True)
@@ -58,6 +64,7 @@ class InstallerSmokeTests(unittest.TestCase):
         self.assertEqual(text.count(END), 1)
         self.assertIn("Keep this line.", text)
 
+    @POSIX_SHELL_ONLY
     def test_existing_index_is_not_overwritten(self) -> None:
         target = self.tmp / ".codex"
         memory = target / "project_memory"
@@ -67,6 +74,7 @@ class InstallerSmokeTests(unittest.TestCase):
         run_cmd(["bash", "installers/install-codex.sh", "--target", str(target), "--yes"])
         self.assertEqual(index.read_text(encoding="utf-8"), "# User Index\n\nDo not overwrite.\n")
 
+    @POSIX_SHELL_ONLY
     def test_uninstall_removes_only_managed_block_by_default(self) -> None:
         target = self.tmp / ".codex"
         target.mkdir(parents=True)
@@ -78,6 +86,7 @@ class InstallerSmokeTests(unittest.TestCase):
         self.assertNotIn(BEGIN, text)
         self.assertTrue((target / "project_memory/INDEX.md").is_file())
 
+    @POSIX_SHELL_ONLY
     def test_force_template_backs_up_existing_index(self) -> None:
         target = self.tmp / ".codex"
         memory = target / "project_memory"
@@ -88,6 +97,7 @@ class InstallerSmokeTests(unittest.TestCase):
         self.assertTrue(any(memory.glob("INDEX.md.backup.*")))
         self.assertIn("# Project Memory Index", index.read_text(encoding="utf-8"))
 
+    @POSIX_SHELL_ONLY
     def test_shell_scripts_parse(self) -> None:
         scripts = [
             "installers/install-common.sh",

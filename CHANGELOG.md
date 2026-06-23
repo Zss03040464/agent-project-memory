@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.0 - Unreleased
+
+- Added a Codex plugin manifest, default continuity Hooks, and discoverable project-memory Skill.
+- Added worktree-isolated hidden checkpoints and external checkpoints for protected non-Git projects.
+- Added persistent turn journals and interruption recovery across process restarts.
+- Added safe project bootstrap, exact-project memory routing, evidence-counted feedback promotion, rollback, and a completion gate.
+- Added transactional install, upgrade, uninstall, rollback, and explicit v1 Hook migration for shell and PowerShell.
+- Expanded privacy scanning to HTML, JSON, common configuration, archive listings/text, and binary metadata without printing matched values.
+- Added Ubuntu, macOS, Windows, Python 3.9/3.14, package, plugin, shell, and PowerShell CI declarations.
+- Enforced private permissions for installed project-memory state and added a regression test for machine-specific paths in public audits.
+- Anchored a clean worktree's first hidden `latest` ref to its existing HEAD without creating a commit or changing normal Git state.
+- Completed isolated rollback, real Linux, PowerShell, real repository/worktree, and full Codex restart acceptance.
+- Made the completion privacy gate self-hosting without weakening checks for sensitive paths, high-confidence credentials, or configuration assignments.
+- Supported completion-gate baselines in safely initialized repositories before their first normal commit.
+- Added verified Windows Python 3.9/3.14 and PowerShell support, including UTF-8 paths, npm `codex.cmd` launch handling, and platform-aware tests.
+
 ## 0.2.0
 
 - Made shell and PowerShell installers idempotent.

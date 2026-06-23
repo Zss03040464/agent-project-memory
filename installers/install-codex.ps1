@@ -1,3 +1,52 @@
+param(
+  [ValidateSet("install", "upgrade", "uninstall", "rollback")]
+  [string]$Operation = "install",
+  [string]$TargetDir = (Join-Path $HOME ".codex"),
+  [string]$HomeDir = $HOME,
+  [string]$RulesFile,
+  [switch]$DryRun,
+  [switch]$Yes,
+  [switch]$Backup,
+  [switch]$ForceTemplate,
+  [switch]$NoRules,
+  [switch]$MigrateV1Hook,
+  [switch]$RemoveData,
+  [switch]$Help
+)
+
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-& (Join-Path $ScriptDir "install-common.ps1") -Agent codex -DefaultTargetDir (Join-Path $HOME ".codex") @args
+$RepoRoot = Split-Path -Parent $ScriptDir
+$Installer = Join-Path $RepoRoot "scripts/manage-install.py"
+$CliArgs = @(
+  $Installer,
+  $Operation,
+  "--agent", "codex",
+  "--target", $TargetDir,
+  "--home", $HomeDir,
+  "--repo-root", $RepoRoot
+)
+if ($RulesFile) { $CliArgs += @("--rules-file", $RulesFile) }
+if ($DryRun) { $CliArgs += "--dry-run" }
+if ($Yes) { $CliArgs += "--yes" }
+if ($Backup) { $CliArgs += "--backup" }
+if ($ForceTemplate) { $CliArgs += "--force-template" }
+if ($NoRules) { $CliArgs += "--no-rules" }
+if ($MigrateV1Hook) { $CliArgs += "--migrate-v1-hook" }
+if ($RemoveData) { $CliArgs += "--remove-data" }
+if ($Help) { $CliArgs += "--help" }
+$PythonArgs = @("-X", "utf8") + $CliArgs
+
+$PyLauncher = Get-Command py -ErrorAction SilentlyContinue
+$Python3 = Get-Command python3 -ErrorAction SilentlyContinue
+$Python = Get-Command python -ErrorAction SilentlyContinue
+if ($PyLauncher) {
+  & $PyLauncher.Source -3 @PythonArgs
+} elseif ($Python3) {
+  & $Python3.Source @PythonArgs
+} elseif ($Python) {
+  & $Python.Source @PythonArgs
+} else {
+  throw "Python 3 was not found on PATH."
+}
+exit $LASTEXITCODE
