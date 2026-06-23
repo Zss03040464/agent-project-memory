@@ -53,6 +53,11 @@ def _append_worker(path_text: str, worker: int, count: int) -> None:
         io_mod.append_jsonl(path, {"worker": worker, "sequence": sequence})
 
 
+def assert_posix_mode(test: unittest.TestCase, path: Path, expected: int) -> None:
+    if os.name != "nt":
+        test.assertEqual(stat.S_IMODE(path.stat().st_mode), expected)
+
+
 class AtomicIoTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory(prefix="apm-io-")
@@ -67,8 +72,8 @@ class AtomicIoTests(unittest.TestCase):
 
         io_mod.atomic_write_text(target, "safe")
 
-        self.assertEqual(stat.S_IMODE(target.parent.stat().st_mode), 0o700)
-        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        assert_posix_mode(self, target.parent, 0o700)
+        assert_posix_mode(self, target, 0o600)
 
     def test_all_newly_created_directory_ancestors_are_private(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -83,7 +88,7 @@ class AtomicIoTests(unittest.TestCase):
             private_root / "sessions" / "current",
         ):
             with self.subTest(directory=directory.name):
-                self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+                assert_posix_mode(self, directory, 0o700)
 
     def test_existing_parent_mode_is_preserved_while_new_children_are_private(
         self,
@@ -96,9 +101,9 @@ class AtomicIoTests(unittest.TestCase):
 
         io_mod.ensure_private_directory(target)
 
-        self.assertEqual(stat.S_IMODE(project_root.stat().st_mode), 0o755)
-        self.assertEqual(stat.S_IMODE((project_root / "state").stat().st_mode), 0o700)
-        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o700)
+        assert_posix_mode(self, project_root, 0o755)
+        assert_posix_mode(self, project_root / "state", 0o700)
+        assert_posix_mode(self, target, 0o700)
 
     def test_atomic_write_does_not_chmod_existing_project_root(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -108,7 +113,7 @@ class AtomicIoTests(unittest.TestCase):
 
         io_mod.atomic_write_text(project_root / "state.json", "safe")
 
-        self.assertEqual(stat.S_IMODE(project_root.stat().st_mode), 0o755)
+        assert_posix_mode(self, project_root, 0o755)
 
     def test_atomic_write_replaces_and_fsyncs_file_and_parent(self) -> None:
         io_mod = import_api("agent_project_memory.io")
@@ -120,7 +125,7 @@ class AtomicIoTests(unittest.TestCase):
 
         self.assertEqual(target.read_text(encoding="utf-8"), "new")
         self.assertNotEqual(target.stat().st_ino, previous_inode)
-        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        assert_posix_mode(self, target, 0o600)
         self.assertFalse(any(target.parent.glob(f".{target.name}.*.tmp")))
 
     def test_committed_replace_is_not_reported_failed_by_post_replace_chmod(
@@ -242,7 +247,7 @@ class AtomicIoTests(unittest.TestCase):
                 for sequence in range(per_worker)
             },
         )
-        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        assert_posix_mode(self, target, 0o600)
         self.assertIn(io_mod.process_lock_backend(), {"fcntl", "msvcrt"})
 
     def test_jsonl_append_injects_schema_without_mutating_caller_record(self) -> None:
@@ -341,9 +346,9 @@ class AtomicIoTests(unittest.TestCase):
             json.loads(events_path.read_text(encoding="utf-8")),
             {"schema_version": 2, "event": "checkpoint"},
         )
-        self.assertEqual(stat.S_IMODE(state_path.parent.stat().st_mode), 0o700)
-        self.assertEqual(stat.S_IMODE(state_path.stat().st_mode), 0o600)
-        self.assertEqual(stat.S_IMODE(events_path.stat().st_mode), 0o600)
+        assert_posix_mode(self, state_path.parent, 0o700)
+        assert_posix_mode(self, state_path, 0o600)
+        assert_posix_mode(self, events_path, 0o600)
         self.assertFalse(fake_msvcrt.held)
 
     def test_write_failure_does_not_echo_payload(self) -> None:

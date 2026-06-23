@@ -96,10 +96,13 @@ class GitCheckpointTests(unittest.TestCase):
         self.assertNotEqual(primary.state_dir, other.state_dir)
         for result in (primary, other):
             self.assertTrue((result.state_dir / "checkpoint.lock").exists())
-            self.assertEqual(
-                stat.S_IMODE((result.state_dir / "checkpoint.lock").stat().st_mode),
-                0o600,
-            )
+            if os.name != "nt":
+                self.assertEqual(
+                    stat.S_IMODE(
+                        (result.state_dir / "checkpoint.lock").stat().st_mode
+                    ),
+                    0o600,
+                )
 
     def test_clean_worktree_gets_head_baseline_ref_without_new_commit(self) -> None:
         checkpoint = import_api("agent_project_memory.checkpoint")
@@ -225,9 +228,12 @@ class GitCheckpointTests(unittest.TestCase):
             ).split()[0],
             "120000",
         )
+        stored_target = os.fsdecode(
+            git(self.repo, "show", f"{result.commit}:external-link")
+        )
         self.assertEqual(
-            git(self.repo, "show", f"{result.commit}:external-link"),
-            os.fsencode(str(external)),
+            stored_target.replace("\\", "/"),
+            str(external).replace("\\", "/"),
         )
 
     def test_file_and_total_size_limits_skip_without_touching_worktree(

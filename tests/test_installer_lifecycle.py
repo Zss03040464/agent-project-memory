@@ -14,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALL = ROOT / "installers" / "install-codex.sh"
 UNINSTALL = ROOT / "installers" / "uninstall.sh"
 BEGIN = "<!-- BEGIN AGENT_PROJECT_MEMORY_RULES -->"
+POSIX_SHELL_ONLY = unittest.skipIf(
+    os.name == "nt", "POSIX shell lifecycle is covered on POSIX runners"
+)
 
 
 def digest(path: Path) -> str:
@@ -56,6 +59,7 @@ class InstallerLifecycleTests(unittest.TestCase):
             check=True,
         )
 
+    @POSIX_SHELL_ONLY
     def test_help_lists_all_lifecycle_operations(self) -> None:
         output = self.run_install("--help").stdout
         for word in ("install", "upgrade", "uninstall", "rollback", "--dry-run", "--backup"):
@@ -76,6 +80,7 @@ class InstallerLifecycleTests(unittest.TestCase):
         ):
             self.assertIn(token, text)
 
+    @POSIX_SHELL_ONLY
     def test_install_activates_plugin_skill_cli_and_private_state(self) -> None:
         self.run_install("install", "--yes", "--backup")
         source = self.home / "plugins" / "agent-project-memory"
@@ -110,6 +115,7 @@ class InstallerLifecycleTests(unittest.TestCase):
         backup_roots = list((self.target / "backups" / "agent-project-memory").glob("*"))
         self.assertTrue(any((path / "manifest.json").is_file() for path in backup_roots))
 
+    @POSIX_SHELL_ONLY
     def test_repeated_install_and_upgrade_preserve_custom_content(self) -> None:
         self.target.mkdir(parents=True)
         agents = self.target / "AGENTS.md"
@@ -125,6 +131,7 @@ class InstallerLifecycleTests(unittest.TestCase):
         self.assertIn("Keep me.", text)
         self.assertEqual(custom.read_text(encoding="utf-8"), "custom\n")
 
+    @POSIX_SHELL_ONLY
     def test_v1_hook_migration_removes_only_duplicate_entry_and_keeps_script(self) -> None:
         hooks_dir = self.target / "hooks"
         hooks_dir.mkdir(parents=True)
@@ -160,6 +167,7 @@ class InstallerLifecycleTests(unittest.TestCase):
         )
         self.assertTrue(any("hooks.json" in path.read_text(encoding="utf-8") for path in manifests))
 
+    @POSIX_SHELL_ONLY
     def test_failure_rolls_back_existing_files_and_does_not_leave_plugin(self) -> None:
         self.target.mkdir(parents=True)
         agents = self.target / "AGENTS.md"
@@ -173,6 +181,7 @@ class InstallerLifecycleTests(unittest.TestCase):
         self.assertFalse((self.home / "plugins" / "agent-project-memory").exists())
         self.assertFalse((self.home / ".agents" / "plugins" / "marketplace.json").exists())
 
+    @POSIX_SHELL_ONLY
     def test_uninstall_keeps_memory_and_rollback_restores_install(self) -> None:
         self.run_install("install", "--yes", "--backup")
         memory = self.target / "project_memory" / "INDEX.md"

@@ -87,7 +87,8 @@ class ContinuityTests(unittest.TestCase):
         self.assertEqual(state["last_event"], "UserPromptSubmit")
         self.assertTrue(state["requires_external_revalidation"])
         self.assertEqual(state["schema_version"], 1)
-        self.assertEqual(oct(result.turn_path.stat().st_mode & 0o777), "0o600")
+        if os.name != "nt":
+            self.assertEqual(oct(result.turn_path.stat().st_mode & 0o777), "0o600")
 
     def test_post_tool_use_updates_evidence_without_storing_raw_tool_payload(
         self,

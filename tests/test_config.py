@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 import unittest
@@ -8,6 +9,10 @@ from pathlib import Path
 from unittest import mock
 
 from tests.helpers import ROOT, import_api
+
+
+def toml_string(value: object) -> str:
+    return json.dumps(str(value))
 
 
 class ConfigTests(unittest.TestCase):
@@ -45,8 +50,8 @@ class ConfigTests(unittest.TestCase):
         config_path.write_text(
             "\n".join(
                 [
-                    f'trusted_roots = ["{trusted}"]',
-                    f'denied_roots = ["{denied}"]',
+                    f"trusted_roots = [{toml_string(trusted)}]",
+                    f"denied_roots = [{toml_string(denied)}]",
                     'project_markers = [".git", "pyproject.toml"]',
                     "max_file_bytes = 2048",
                     "max_total_bytes = 8192",
@@ -132,6 +137,8 @@ class ConfigTests(unittest.TestCase):
     def test_dangerous_roots_are_filtered_and_denied_roots_win(self) -> None:
         config_mod = import_api("agent_project_memory.config")
         home = Path.home().resolve()
+        filesystem_root = Path(home.anchor)
+        users_root = filesystem_root / "Users"
         safe = self.root / "safe"
         denied = safe / "private"
         config_path = self.root / "config.toml"
@@ -139,14 +146,14 @@ class ConfigTests(unittest.TestCase):
             "\n".join(
                 [
                     "trusted_roots = [",
-                    f'  "{Path(os.sep)}",',
-                    f'  "{home}",',
-                    '  "/Users",',
-                    f'  "{home / ".codex"}",',
-                    f'  "{safe}",',
-                    f'  "{denied}"',
+                    f"  {toml_string(filesystem_root)},",
+                    f"  {toml_string(home)},",
+                    f"  {toml_string(users_root)},",
+                    f"  {toml_string(home / '.codex')},",
+                    f"  {toml_string(safe)},",
+                    f"  {toml_string(denied)}",
                     "]",
-                    f'denied_roots = ["{denied}"]',
+                    f"denied_roots = [{toml_string(denied)}]",
                 ]
             ),
             encoding="utf-8",
@@ -178,23 +185,25 @@ class ConfigTests(unittest.TestCase):
         alias.symlink_to(dropbox, target_is_directory=True)
         volume_root = Path("/Volumes/ExternalDisk")
         volume_project = volume_root / "work" / "project"
+        volume_candidates = [] if os.name == "nt" else [
+            Path("/Volumes"),
+            volume_root,
+            volume_project,
+        ]
+        configured = [
+            dropbox,
+            alias,
+            mobile_documents,
+            cloud_drive,
+            dropbox_project,
+            cloud_project,
+            *volume_candidates,
+        ]
         config_path = self.root / "config.toml"
         config_path.write_text(
-            "\n".join(
-                [
-                    "trusted_roots = [",
-                    f'  "{dropbox}",',
-                    f'  "{alias}",',
-                    f'  "{mobile_documents}",',
-                    f'  "{cloud_drive}",',
-                    '  "/Volumes",',
-                    f'  "{volume_root}",',
-                    f'  "{dropbox_project}",',
-                    f'  "{cloud_project}",',
-                    f'  "{volume_project}"',
-                    "]",
-                ]
-            ),
+            "trusted_roots = [\n"
+            + ",\n".join(f"  {toml_string(path)}" for path in configured)
+            + "\n]",
             encoding="utf-8",
         )
 
@@ -232,7 +241,8 @@ class ConfigTests(unittest.TestCase):
             (project / ".git").mkdir()
             allowed_projects.append(project.resolve())
         volume = Path("/Volumes/ExternalDisk")
-        broad_candidates.extend((Path("/Volumes"), volume, volume / "project"))
+        if os.name != "nt":
+            broad_candidates.extend((Path("/Volumes"), volume, volume / "project"))
         alias = self.root / "cloud-provider-alias"
         alias.symlink_to(providers[0], target_is_directory=True)
         broad_candidates.append(alias)
@@ -240,10 +250,12 @@ class ConfigTests(unittest.TestCase):
         config_path = self.root / "config.toml"
         configured = broad_candidates + [
             provider / "work" / "project" for provider in providers
-        ] + [volume / "work" / "project"]
+        ]
+        if os.name != "nt":
+            configured.append(volume / "work" / "project")
         config_path.write_text(
             "trusted_roots = [\n"
-            + ",\n".join(f'  "{path}"' for path in configured)
+            + ",\n".join(f"  {toml_string(path)}" for path in configured)
             + "\n]",
             encoding="utf-8",
         )
@@ -312,7 +324,7 @@ class ConfigTests(unittest.TestCase):
         second.symlink_to(first)
         config_path = self.root / "config.toml"
         config_path.write_text(
-            f'trusted_roots = ["{first}"]', encoding="utf-8"
+            f"trusted_roots = [{toml_string(first)}]", encoding="utf-8"
         )
 
         result = config_mod.load_config(config_path)
@@ -368,7 +380,11 @@ class ConfigTests(unittest.TestCase):
         config_path.write_text(
             "\n".join(
                 [
-                    f'trusted_roots = ["{unmarked}", "{marked}"]',
+                    "trusted_roots = ["
+                    + toml_string(unmarked)
+                    + ", "
+                    + toml_string(marked)
+                    + "]",
                     'project_markers = [".git"]',
                 ]
             ),
