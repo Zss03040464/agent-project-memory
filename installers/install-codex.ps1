@@ -35,16 +35,17 @@ if ($NoRules) { $CliArgs += "--no-rules" }
 if ($MigrateV1Hook) { $CliArgs += "--migrate-v1-hook" }
 if ($RemoveData) { $CliArgs += "--remove-data" }
 if ($Help) { $CliArgs += "--help" }
+$PythonArgs = @("-X", "utf8") + $CliArgs
 
 $PyLauncher = Get-Command py -ErrorAction SilentlyContinue
 $Python3 = Get-Command python3 -ErrorAction SilentlyContinue
 $Python = Get-Command python -ErrorAction SilentlyContinue
 if ($PyLauncher) {
-  & $PyLauncher.Source -3 @CliArgs
+  & $PyLauncher.Source -3 @PythonArgs
 } elseif ($Python3) {
-  & $Python3.Source @CliArgs
+  & $Python3.Source @PythonArgs
 } elseif ($Python) {
-  & $Python.Source @CliArgs
+  & $Python.Source @PythonArgs
 } else {
   throw "Python 3 was not found on PATH."
 }

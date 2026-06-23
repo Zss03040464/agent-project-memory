@@ -8,6 +8,9 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from tests.helpers import import_api
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,9 +79,27 @@ class InstallerLifecycleTests(unittest.TestCase):
             "$MigrateV1Hook",
             '"--dry-run"',
             '"--migrate-v1-hook"',
+            '@("-X", "utf8")',
             "Get-Command python3",
         ):
             self.assertIn(token, text)
+
+    def test_windows_codex_shim_uses_command_processor(self) -> None:
+        installer = import_api("agent_project_memory.installer")
+        shim = r"C:\Program Files\nodejs\codex.cmd"
+        command_processor = r"C:\Windows\System32\cmd.exe"
+
+        with mock.patch.object(installer.os, "name", "nt"):
+            with mock.patch.object(installer.shutil, "which", return_value=shim):
+                with mock.patch.dict(
+                    installer.os.environ,
+                    {"COMSPEC": command_processor},
+                ):
+                    command = installer._codex_command("plugin", "list", "--json")
+
+        self.assertEqual(command[:4], [command_processor, "/d", "/s", "/c"])
+        self.assertIn("codex.cmd", command[4].casefold())
+        self.assertTrue(command[4].endswith("plugin list --json"))
 
     @POSIX_SHELL_ONLY
     def test_install_activates_plugin_skill_cli_and_private_state(self) -> None:

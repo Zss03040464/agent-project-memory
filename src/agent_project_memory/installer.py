@@ -358,9 +358,20 @@ def _codex_env(layout: Layout) -> Dict[str, str]:
     return env
 
 
+def _codex_command(*args: str) -> List[str]:
+    executable = shutil.which("codex")
+    if executable is None:
+        raise RuntimeError("Codex CLI was not found")
+    if os.name == "nt" and executable.casefold().endswith((".cmd", ".bat")):
+        command_processor = os.environ.get("COMSPEC") or "cmd.exe"
+        command_line = subprocess.list2cmdline([executable, *args])
+        return [command_processor, "/d", "/s", "/c", command_line]
+    return [executable, *args]
+
+
 def _plugin_installed(layout: Layout) -> bool:
     result = subprocess.run(
-        ["codex", "plugin", "list", "--json"],
+        _codex_command("plugin", "list", "--json"),
         env=_codex_env(layout),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -380,13 +391,13 @@ def _codex_plugin(layout: Layout, operation: str) -> None:
     if operation == "remove":
         if not installed:
             return
-        command = ["codex", "plugin", "remove", PLUGIN_ID, "--json"]
+        command = _codex_command("plugin", "remove", PLUGIN_ID, "--json")
     else:
         if installed and operation == "install":
             return
         if installed:
             removed = subprocess.run(
-                ["codex", "plugin", "remove", PLUGIN_ID, "--json"],
+                _codex_command("plugin", "remove", PLUGIN_ID, "--json"),
                 env=_codex_env(layout),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -394,7 +405,7 @@ def _codex_plugin(layout: Layout, operation: str) -> None:
             )
             if removed.returncode:
                 raise RuntimeError("Codex could not remove the previous plugin version")
-        command = ["codex", "plugin", "add", PLUGIN_ID, "--json"]
+        command = _codex_command("plugin", "add", PLUGIN_ID, "--json")
     result = subprocess.run(
         command,
         env=_codex_env(layout),
