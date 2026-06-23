@@ -326,7 +326,7 @@ class AtomicIoTests(unittest.TestCase):
 
         with mock.patch.object(io_mod, "_fcntl", None):
             with mock.patch.object(io_mod, "_msvcrt", fake_msvcrt):
-                with mock.patch.object(io_mod.os, "fchmod", None):
+                with mock.patch.object(io_mod.os, "fchmod", None, create=True):
                     io_mod.atomic_write_json(
                         state_path,
                         {"phase": "ready"},
