@@ -10,6 +10,21 @@ from typing import Mapping, Optional, Tuple
 from .privacy import classify_sensitive_path, scan_sensitive_text
 
 
+_HIGH_CONFIDENCE_CONTENT_CATEGORIES = frozenset(
+    {
+        "private_key",
+        "openai_token",
+        "github_token",
+        "aws_access_key",
+        "authorization_header",
+        "cookie_header",
+    }
+)
+_CONFIG_DATA_SUFFIXES = frozenset(
+    {".cfg", ".conf", ".config", ".ini", ".json", ".toml", ".yaml", ".yml"}
+)
+
+
 @dataclass(frozen=True)
 class GateResult:
     passed: bool
@@ -76,9 +91,22 @@ def _contains_sensitive_content(root: Path) -> bool:
             continue
         if b"\0" in data[:8192]:
             continue
-        if scan_sensitive_text(data.decode("utf-8", "ignore")).is_sensitive:
+        scan = scan_sensitive_text(data.decode("utf-8", "ignore"))
+        if _content_categories_are_sensitive(relative, scan.categories):
             return True
     return False
+
+
+def _content_categories_are_sensitive(
+    relative: Path, categories: Tuple[str, ...]
+) -> bool:
+    detected = set(categories)
+    if detected.intersection(_HIGH_CONFIDENCE_CONTENT_CATEGORIES):
+        return True
+    return (
+        "secret_assignment" in detected
+        and relative.suffix.casefold() in _CONFIG_DATA_SUFFIXES
+    )
 
 
 def _git(root: Path, *args: str) -> str:

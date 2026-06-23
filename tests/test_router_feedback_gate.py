@@ -321,6 +321,69 @@ class RouterFeedbackGateTests(unittest.TestCase):
         )
         self.assertTrue(passed.passed)
 
+    def test_completion_gate_does_not_flag_its_own_detector_and_test_fixtures(
+        self,
+    ) -> None:
+        gate = import_api("agent_project_memory.completion_gate")
+        project = self.root / "self-hosting-project"
+        (project / "src").mkdir(parents=True)
+        (project / "tests").mkdir()
+        subprocess.run(["git", "init", "-q", str(project)], check=True)
+        subprocess.run(["git", "-C", str(project), "config", "user.name", "Test"], check=True)
+        subprocess.run(["git", "-C", str(project), "config", "user.email", "test@invalid"], check=True)
+        (project / "任务.md").write_text("# Tasks\n", encoding="utf-8")
+        (project / "交接.md").write_text("# Handoff\n", encoding="utf-8")
+        (project / "src" / "privacy.py").write_text(
+            'CERTIFICATE_PATTERN = "-----BEGIN CERTIFICATE-----"\n',
+            encoding="utf-8",
+        )
+        (project / "src" / "config.py").write_text(
+            "token = match.group(0)\n",
+            encoding="utf-8",
+        )
+        (project / "tests" / "test_privacy.py").write_text(
+            'password = "example-value"\n',
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(project), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(project), "commit", "-qm", "base"], check=True)
+
+        result = gate.run_completion_gate(
+            project,
+            required_requirements=("tests",),
+            evidence={"tests": True},
+            expected_git_state=gate.capture_git_state(project),
+        )
+
+        self.assertTrue(result.passed)
+
+    def test_completion_gate_flags_generic_secret_assignment_in_config_data(
+        self,
+    ) -> None:
+        gate = import_api("agent_project_memory.completion_gate")
+        project = self.root / "config-secret-project"
+        project.mkdir()
+        subprocess.run(["git", "init", "-q", str(project)], check=True)
+        subprocess.run(["git", "-C", str(project), "config", "user.name", "Test"], check=True)
+        subprocess.run(["git", "-C", str(project), "config", "user.email", "test@invalid"], check=True)
+        (project / "任务.md").write_text("# Tasks\n", encoding="utf-8")
+        (project / "交接.md").write_text("# Handoff\n", encoding="utf-8")
+        (project / "settings.toml").write_text(
+            'api_key = "private-value"\n',
+            encoding="utf-8",
+        )
+        subprocess.run(["git", "-C", str(project), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(project), "commit", "-qm", "base"], check=True)
+
+        result = gate.run_completion_gate(
+            project,
+            required_requirements=("tests",),
+            evidence={"tests": True},
+            expected_git_state=gate.capture_git_state(project),
+        )
+
+        self.assertIn("sensitive-content", result.hard_failures)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
