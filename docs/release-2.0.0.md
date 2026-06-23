@@ -1,6 +1,6 @@
 # Agent Project Memory 2.0.0 Release Preparation
 
-Status: local release candidate; not published.
+Status: draft pull request #1; not merged or released.
 
 ## Highlights
 
@@ -19,7 +19,9 @@ Status: local release candidate; not published.
 
 ## Local release candidate evidence
 
-- macOS Python 3.9 and 3.14: 124 tests on each runtime;
+- macOS Python 3.9 and 3.14: 125 tests on each runtime;
+- GitHub-hosted Ubuntu, macOS, and Windows runners: Python 3.9 and 3.14
+  matrix passed, including native PowerShell lifecycle smoke on Windows;
 - Ubuntu x86_64 Python 3.12: 121 tests;
 - PowerShell 7.6.3: lifecycle smoke passed;
 - real Codex install, trust, restart, interruption recovery, and Skill discovery
@@ -34,31 +36,18 @@ Status: local release candidate; not published.
 - snapshot and completion-gate baselines work in safely initialized projects
   before their first normal commit.
 
-See the stage 9–11 audit reports for exact limits. The current branch has not
-run on a remote Windows runner because it has not been pushed.
+See the stage 9–11 and final delivery audit reports for exact limits. Draft
+pull request [#1](https://github.com/Zss03040464/agent-project-memory/pull/1)
+is the first remote publication of this branch and all declared checks passed.
 
-## Publication commands — do not run without explicit authorization
+## Publication status
 
-Review locally first:
+Published branch:
 
-```bash
-git status --short
-git log --oneline main..feat/codex-continuity-v2
-git diff --stat main...feat/codex-continuity-v2
+```text
+feat/codex-continuity-v2
+PR: https://github.com/Zss03040464/agent-project-memory/pull/1
 ```
 
-After the user separately authorizes publication:
-
-```bash
-git push -u origin feat/codex-continuity-v2
-gh pr create \
-  --repo Zss03040464/agent-project-memory \
-  --base main \
-  --head feat/codex-continuity-v2 \
-  --draft \
-  --title "Agent Project Memory 2.0.0: Codex continuity and recovery" \
-  --body-file docs/release-2.0.0.md
-```
-
-Wait for Ubuntu, macOS, Windows/PowerShell, package, privacy, and plugin checks.
-Do not merge, tag, or delete remote branches until separately authorized.
+The pull request remains draft. Do not merge, tag, release, or delete branches
+until separately authorized.

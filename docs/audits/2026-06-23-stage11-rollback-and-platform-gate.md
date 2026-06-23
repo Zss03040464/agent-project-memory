@@ -34,7 +34,7 @@ archive-by-default data.
 
 ### macOS
 
-- Python 3.9 and 3.14 each passed 124 tests after the final completion-gate
+- Python 3.9 and 3.14 each passed 125 tests after the final completion-gate
   regression fixes.
 - Package compilation, plugin validation, privacy scan, POSIX shell smoke, real
   Codex plugin/Skill discovery, Hook trust, and full application restart passed.
@@ -79,10 +79,11 @@ managed rules remained idempotent
 memory survived default uninstall
 ```
 
-The workflow declares Windows runners for Python 3.9 and 3.14 and executes the
-PowerShell smoke script without a skip branch. The branch has not been pushed,
-as required, so no remote Windows runner result is claimed. Running that job is
-the first publication-time check after explicit push or pull-request authority.
+At the original stage-11 boundary the branch had not been pushed, so no remote
+Windows result was claimed. After explicit publication authorization, draft
+pull request #1 ran Windows Server 2025 with Python 3.9 and 3.14. Both jobs
+passed the platform-aware unit suite, compile, privacy, plugin validation, and
+native PowerShell install/upgrade/uninstall smoke workflow.
 
 ## Gate result
 
@@ -96,6 +97,8 @@ the first publication-time check after explicit push or pull-request authority.
 - unborn-repository completion gate: passed before a project's first normal
   commit and still detected later Git-state changes;
 - public audit path hygiene: passed;
-- no push, pull request, merge, tag, or remote-history rewrite: confirmed;
-- Windows runner execution: not claimed because publication is prohibited in
-  this task.
+- the initial implementation phase performed no push, pull request, merge, tag,
+  or remote-history rewrite;
+- after later explicit authorization, the feature branch and draft PR #1 were
+  published; all Windows, Ubuntu, macOS, and package checks passed;
+- no merge, tag, release, branch deletion, or remote-history rewrite occurred.

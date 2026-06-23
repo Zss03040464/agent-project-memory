@@ -14,6 +14,7 @@
 - Completed isolated rollback, real Linux, PowerShell, real repository/worktree, and full Codex restart acceptance.
 - Made the completion privacy gate self-hosting without weakening checks for sensitive paths, high-confidence credentials, or configuration assignments.
 - Supported completion-gate baselines in safely initialized repositories before their first normal commit.
+- Added verified Windows Python 3.9/3.14 and PowerShell support, including UTF-8 paths, npm `codex.cmd` launch handling, and platform-aware tests.
 
 ## 0.2.0
 

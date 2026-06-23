@@ -4,7 +4,7 @@ Date: 2026-06-23 CST
 
 Branch: `feat/codex-continuity-v2`
 
-Status: local release candidate; not pushed or published.
+Status: draft pull request #1; not merged or released.
 
 ## Final implementation evidence
 
@@ -24,8 +24,8 @@ Status: local release candidate; not pushed or published.
 ## Final automated matrix
 
 ```text
-macOS Python 3.9:  124 tests, 0 failures
-macOS Python 3.14: 124 tests, 0 failures
+macOS Python 3.9:  125 tests, 0 failures
+macOS Python 3.14: 125 tests, 0 failures
 compileall: passed on both supported Python runtimes
 POSIX shell smoke: 8 tests, 0 failures
 PowerShell 7.6.3 lifecycle smoke: passed
@@ -52,14 +52,15 @@ The latest successful Linux evidence remains Ubuntu x86_64 with Python 3.12:
 rerun was attempted after the platform-neutral completion-gate fix, but the SSH
 endpoint timed out during banner exchange, so no newer Linux result is claimed.
 
-The workflow declares Windows Python 3.9 and 3.14 and runs the native PowerShell
-smoke test without a skip path. No Windows runner result is claimed because the
-branch was intentionally not pushed.
+Draft pull request #1 ran the declared GitHub-hosted Ubuntu, macOS, and Windows
+matrix for Python 3.9 and 3.14. Every job passed. The Windows jobs included the
+native PowerShell lifecycle smoke workflow in a Unicode and spaced path.
 
 ## Delivery boundary
 
-- No push, pull request, merge, remote tag, remote branch deletion, or history
-  rewrite was performed.
+- The feature branch was pushed and draft pull request #1 was opened after
+  explicit authorization. No merge, release, remote tag, branch deletion, or
+  history rewrite was performed.
 - No normal branch, HEAD, index, worktree, or user staging state was modified by
   checkpoint or rollback mechanisms.
 - No credential values or private environment contents were read into reports.

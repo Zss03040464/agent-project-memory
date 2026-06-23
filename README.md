@@ -167,8 +167,9 @@ CI declares Ubuntu, macOS, and Windows runners for Python 3.9 and 3.14, runs rea
 The current local acceptance evidence is recorded in
 [real install and recovery acceptance](docs/audits/2026-06-23-stage9-10-real-install-acceptance.md)
 and [rollback and platform gate](docs/audits/2026-06-23-stage11-rollback-and-platform-gate.md).
-The branch has not been pushed, so these reports do not claim that its declared
-remote Windows job has run.
+Draft pull request [#1](https://github.com/Zss03040464/agent-project-memory/pull/1)
+ran the full Ubuntu, macOS, Windows, Python 3.9/3.14, PowerShell, and package
+matrix successfully.
 
 ## Security
 
