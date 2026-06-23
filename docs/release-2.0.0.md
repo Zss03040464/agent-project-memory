@@ -19,7 +19,7 @@ Status: local release candidate; not published.
 
 ## Local release candidate evidence
 
-- macOS Python 3.9 and 3.14: 123 tests on each runtime;
+- macOS Python 3.9 and 3.14: 124 tests on each runtime;
 - Ubuntu x86_64 Python 3.12: 121 tests;
 - PowerShell 7.6.3: lifecycle smoke passed;
 - real Codex install, trust, restart, interruption recovery, and Skill discovery
@@ -31,6 +31,8 @@ Status: local release candidate; not published.
   and fake test fixtures no longer create false positives, while real sensitive
   paths, high-confidence credentials, and configuration assignments still
   block delivery.
+- snapshot and completion-gate baselines work in safely initialized projects
+  before their first normal commit.
 
 See the stage 9–11 audit reports for exact limits. The current branch has not
 run on a remote Windows runner because it has not been pushed.

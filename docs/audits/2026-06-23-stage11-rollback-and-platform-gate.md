@@ -34,8 +34,8 @@ archive-by-default data.
 
 ### macOS
 
-- Python 3.9 and 3.14 each passed 123 tests after the final completion-gate
-  regression fix.
+- Python 3.9 and 3.14 each passed 124 tests after the final completion-gate
+  regression fixes.
 - Package compilation, plugin validation, privacy scan, POSIX shell smoke, real
   Codex plugin/Skill discovery, Hook trust, and full application restart passed.
 - The final clean branch passed its own completion gate with all seven required
@@ -93,6 +93,8 @@ the first publication-time check after explicit push or pull-request authority.
 - self-hosting completion gate: passed without weakening high-confidence token,
   private-key, authentication-header, sensitive-path, or config-assignment
   blocking;
+- unborn-repository completion gate: passed before a project's first normal
+  commit and still detected later Git-state changes;
 - public audit path hygiene: passed;
 - no push, pull request, merge, tag, or remote-history rewrite: confirmed;
 - Windows runner execution: not claimed because publication is prohibited in

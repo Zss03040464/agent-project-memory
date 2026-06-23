@@ -24,8 +24,8 @@ Status: local release candidate; not pushed or published.
 ## Final automated matrix
 
 ```text
-macOS Python 3.9:  123 tests, 0 failures
-macOS Python 3.14: 123 tests, 0 failures
+macOS Python 3.9:  124 tests, 0 failures
+macOS Python 3.14: 124 tests, 0 failures
 compileall: passed on both supported Python runtimes
 POSIX shell smoke: 8 tests, 0 failures
 PowerShell 7.6.3 lifecycle smoke: passed
@@ -42,6 +42,10 @@ the detector scanning its own patterns and fake test fixtures. The final policy
 keeps hard failures for sensitive paths, private keys, high-confidence tokens,
 authentication and cookie headers, and generic secret assignments in structured
 configuration data.
+
+A second red-green regression proved that a safely initialized project with no
+first normal commit can create a baseline, pass the gate unchanged, and fail the
+gate after an unexpected Git-state change.
 
 The latest successful Linux evidence remains Ubuntu x86_64 with Python 3.12:
 121 tests plus compile, plugin, privacy, and shell gates passed. A later archive
