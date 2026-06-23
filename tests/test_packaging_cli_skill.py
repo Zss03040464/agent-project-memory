@@ -252,6 +252,53 @@ class CliAndSkillTests(unittest.TestCase):
             self.assertEqual(result.returncode, 2)
             self.assertIn("git-state-pollution", json.loads(result.stdout)["hard_failures"])
 
+    def test_cli_gate_supports_unborn_repository_baseline(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="apm-gate-unborn-") as raw:
+            root = Path(raw)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / "任务.md").write_text("# Tasks\n", encoding="utf-8")
+            (root / "交接.md").write_text("# Handoff\n", encoding="utf-8")
+            baseline = root / ".git" / "apm-baseline.json"
+
+            snapshot = run_cli(
+                "snapshot",
+                "--project-root",
+                str(root),
+                "--output",
+                str(baseline),
+                check=False,
+            )
+            self.assertEqual(snapshot.returncode, 0, snapshot.stdout + snapshot.stderr)
+            passed = run_cli(
+                "gate",
+                "--project-root",
+                str(root),
+                "--require",
+                "docs",
+                "--evidence",
+                "docs",
+                "--baseline",
+                str(baseline),
+                "--json",
+                check=False,
+            )
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+
+            (root / "unexpected.txt").write_text("pollution\n", encoding="utf-8")
+            failed = run_cli(
+                "gate",
+                "--project-root",
+                str(root),
+                "--baseline",
+                str(baseline),
+                "--json",
+                check=False,
+            )
+            self.assertEqual(failed.returncode, 2)
+            self.assertIn(
+                "git-state-pollution", json.loads(failed.stdout)["hard_failures"]
+            )
+
     def test_skill_has_discovery_frontmatter_and_layered_workflow(self) -> None:
         text = (ROOT / "skills" / "project-memory" / "SKILL.md").read_text(
             encoding="utf-8"

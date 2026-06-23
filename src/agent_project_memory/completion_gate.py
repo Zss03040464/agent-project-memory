@@ -35,9 +35,16 @@ class GateResult:
 def capture_git_state(project_root: Path) -> Optional[Tuple[str, str, str, str]]:
     root = Path(project_root)
     try:
+        status = _git(root, "status", "--porcelain=v2", "-z")
+        try:
+            head = _git(root, "rev-parse", "--verify", "HEAD")
+        except RuntimeError:
+            if _git(root, "rev-parse", "--is-inside-work-tree").strip() != "true":
+                raise
+            head = ""
         return (
-            _git(root, "status", "--porcelain=v2", "-z"),
-            _git(root, "rev-parse", "HEAD"),
+            status,
+            head,
             _git(root, "branch", "--show-current"),
             _git(root, "write-tree"),
         )
